@@ -6,7 +6,7 @@ import copy
 import torch
 from torchvision import datasets, transforms
 from sampling import mnist_iid, mnist_noniid, mnist_noniid_unequal
-from sampling import cifar_iid, cifar_noniid
+from sampling import cifar_iid, cifar_noniid, cifar_noniid_unequal
 
 
 def get_dataset(args):
@@ -21,10 +21,10 @@ def get_dataset(args):
             [transforms.ToTensor(),
              transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-        train_dataset = datasets.MNIST(data_dir, train=True, download=True,
+        train_dataset = datasets.CIFAR10(data_dir, train=True, download=True,
                                        transform=apply_transform)
 
-        test_dataset = datasets.MNIST(data_dir, train=False, download=True,
+        test_dataset = datasets.CIFAR10(data_dir, train=False, download=True,
                                       transform=apply_transform)
 
         # sample training data amongst users
@@ -35,7 +35,8 @@ def get_dataset(args):
             # Sample Non-IID user data from Mnist
             if args.unequal:
                 # Chose uneuqal splits for every user
-                raise NotImplementedError()
+                # raise NotImplementedError()
+                user_groups = cifar_noniid_unequal(train_dataset, args.num_users)
             else:
                 # Chose euqal splits for every user
                 user_groups = cifar_noniid(train_dataset, args.num_users)
