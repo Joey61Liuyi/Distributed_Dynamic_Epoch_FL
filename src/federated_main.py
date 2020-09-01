@@ -41,13 +41,15 @@ if __name__ == '__main__':
     args = args_parser()
     exp_details(args)
 
-    use_cuda = torch.cuda.is_available()
-    device = torch.device('cuda' if use_cuda else 'cpu')
+    torch.cuda.set_device(args.gpu)
+    # device = 'cuda' if args.gpu else 'cpu'
+    #
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-
+    print(device, 'Here')
     # load dataset and user groups
     train_dataset, test_dataset, user_groups = get_dataset(args)
+
 
     # BUILD MODEL
     if args.model == 'cnn':
