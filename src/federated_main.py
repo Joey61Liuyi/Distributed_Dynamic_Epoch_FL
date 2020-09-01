@@ -44,6 +44,8 @@ if __name__ == '__main__':
     use_cuda = torch.cuda.is_available()
     device = torch.device('cuda' if use_cuda else 'cpu')
 
+
+
     # load dataset and user groups
     train_dataset, test_dataset, user_groups = get_dataset(args)
 
