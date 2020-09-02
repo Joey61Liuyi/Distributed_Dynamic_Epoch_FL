@@ -3,7 +3,7 @@
 # Python version: 3.6
 
 import argparse
-from src.configs import Configs
+from configs import Configs
 
 def args_parser():
 

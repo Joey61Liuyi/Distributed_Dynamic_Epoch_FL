@@ -57,7 +57,7 @@ class LocalUpdate(object):
                                 batch_size=self.args.local_bs, shuffle=False)
         return trainloader, validloader, testloader
 
-    def update_weights(self, model, global_round):
+    def update_weights(self, model, global_round, local_ep):
         # Set mode to train model
         model.train()
         epoch_loss = []
@@ -70,7 +70,7 @@ class LocalUpdate(object):
             optimizer = torch.optim.Adam(model.parameters(), lr=self.args.lr,
                                          weight_decay=1e-4)
 
-        for iter in range(self.args.local_ep):
+        for iter in range(local_ep):
             batch_loss = []
             for batch_idx, (images, labels) in enumerate(self.trainloader):
                 images, labels = images.to(self.device), labels.to(self.device)

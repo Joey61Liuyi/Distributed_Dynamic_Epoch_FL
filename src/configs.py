@@ -16,7 +16,7 @@ class Configs(object):
         self.rounds = 100
         self.frac = 1
         self.user_num = 5
-        self.tau = 5
+        self.tau = [2, 5, 3, 2, 1]
         self.FL_LR = 0.01
         self.model = 'cnn'
         self.iid = 0

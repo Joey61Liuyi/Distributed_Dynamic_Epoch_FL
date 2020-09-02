@@ -31,6 +31,8 @@ if __name__ == '__main__':
     np.random.seed(0)
     torch.random.manual_seed(0)
     random.seed(0)
+    print("working")
+    pass
     start_time = time.time()
     acc_list = []
     loss_list = []
@@ -95,17 +97,28 @@ if __name__ == '__main__':
         local_weights, local_losses = [], []
         print(f'\n | Global Training Round : {epoch+1} |\n')
 
+
+        pass
         global_model.train()
         m = max(int(args.frac * args.num_users), 1)
         idxs_users = np.random.choice(range(args.num_users), m, replace=False)
 
+        print(idxs_users)
+        local_ep_list = input('please input the local epoch list:')
+        local_ep_list = local_ep_list.split(',')
+        local_ep_list = [int(i) for i in local_ep_list]
+
         for idx in idxs_users:
-            local_model = LocalUpdate(args=args, dataset=train_dataset,
-                                      idxs=user_groups[idx], logger=logger)
-            w, loss = local_model.update_weights(
-                model=copy.deepcopy(global_model), global_round=epoch)
-            local_weights.append(copy.deepcopy(w))
-            local_losses.append(copy.deepcopy(loss))
+
+            local_ep = local_ep_list[idx]
+
+            if local_ep != 0:
+                local_model = LocalUpdate(args=args, dataset=train_dataset,
+                                          idxs=user_groups[idx], logger=logger)
+                w, loss = local_model.update_weights(
+                    model=copy.deepcopy(global_model), global_round=epoch, local_ep=local_ep)
+                local_weights.append(copy.deepcopy(w))
+                local_losses.append(copy.deepcopy(loss))
 
         # update global weights
         global_weights = average_weights(local_weights)
