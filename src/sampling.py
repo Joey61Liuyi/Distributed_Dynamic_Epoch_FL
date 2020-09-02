@@ -7,6 +7,7 @@ import numpy as np
 from torchvision import datasets, transforms
 import pandas as pd
 import random
+from configs import Configs
 
 def randomSplit(M, N, minV, maxV):
     res = []
@@ -93,15 +94,19 @@ def mnist_noniid_unequal(dataset, num_users):
 
     # Divide the shards into random chunks for every client
     # s.t the sum of these chunks = num_shards
+    configs = Configs()
+    datasize = configs.data_size
+    random_shard_size = datasize/num_imgs
+    random_shard_size = random_shard_size.astype('int32')
 
-    if num_users == 5:
-        random_shard_size = np.array([200, 240, 280, 160, 320])
-
-    else:
-        random_shard_size = np.array(randomSplit(num_shards, num_users, min_shard, max_shard))
+    # if num_users == 5:
+    #     random_shard_size = np.array([200, 240, 280, 160, 320])
+    #
+    # else:
+    #     random_shard_size = np.array(randomSplit(num_shards, num_users, min_shard, max_shard))
 
     Di = pd.DataFrame(random_shard_size * num_imgs)
-    Di.to_csv(str(num_users)+ 'mnist.csv', header=['data_size'])
+    Di.to_csv(str(num_users) + 'mnist.csv', header=['data_size'])
 
     # Assign the shards randomly to each client
     if sum(random_shard_size) > num_shards:

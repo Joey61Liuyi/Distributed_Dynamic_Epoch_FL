@@ -17,8 +17,8 @@ def args_parser():
                         help="number of users: K")
     parser.add_argument('--frac', type=float, default=configs.frac,
                         help='the fraction of clients: C')
-    parser.add_argument('--local_ep', type=int, default=configs.tau,
-                        help="the number of local epochs: E")
+    # parser.add_argument('--local_ep', type=int, default=configs.tau,
+    #                     help="the number of local epochs: E")
     parser.add_argument('--local_bs', type=int, default=10,
                         help="local batch size: B")
     parser.add_argument('--lr', type=float, default=configs.FL_LR,

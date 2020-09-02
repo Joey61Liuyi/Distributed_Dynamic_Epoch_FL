@@ -13,14 +13,42 @@ class Configs(object):
 
         ## For FL training
         self.data = 'mnist'
-        self.rounds = 100
+        self.rounds = 1
         self.frac = 1
         self.user_num = 5
-        self.tau = [2, 5, 3, 2, 1]
         self.FL_LR = 0.01
         self.model = 'cnn'
         self.iid = 0
         self.unequal = 1
+
+        ## For RL
+
+        self.EP_MAX = 200
+
+
+
+
+
+
+        self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
+
+        if self.data == 'cifar':
+            theta_num = 62006
+
+        else:
+            theta_num = 21840
+
+        self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
+
+
+
+        self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
+        self.lamda = 50
+        self.C = 20
+        self.alpha = 0.1
+
+
+
 
 
 #
