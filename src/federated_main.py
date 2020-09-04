@@ -9,7 +9,8 @@ import time
 import pickle
 import numpy as np
 from tqdm import tqdm
-
+import matplotlib.pyplot as plt        #matplotlib inline
+import csv
 
 import torch
 from tensorboardX import SummaryWriter
@@ -21,6 +22,7 @@ from utils import get_dataset, average_weights, exp_details
 import pandas as pd
 import random
 from configs import Configs
+from DNC_PPO import PPO
 
 def get_parameter_number(net):
     total_num = sum(p.numel() for p in net.parameters())
@@ -38,10 +40,12 @@ class Env(object):
         self.lamda = configs.lamda
         self.seed = 0
         self.D = configs.D
+        self.history_avg_price = np.zeros(5)
 
     def reset(self):
         self.index = 0
         self.state = 0.0001 * self.data_size + self.frequency  #TODO
+        self.state_ = np.zeros(configs.user_num)
         np.random.seed(self.seed)
         torch.random.manual_seed(self.seed)
         random.seed(self.seed)
@@ -126,11 +130,11 @@ class Env(object):
         # local_ep_list = local_ep_list.split(',')
         # local_ep_list = [int(i) for i in local_ep_list]
 
-        # todo  DRL Action
+        # TODO  DRL Action
+
         local_ep_list = action
 
         for idx in idxs_users:
-
             local_ep = local_ep_list[idx]
 
             if local_ep != 0:
@@ -183,39 +187,205 @@ class Env(object):
 
         self.index += 1
 
+
+        # TODO     Env for Computing Time & State Transition & Reward Design
+
         time_cmp = (action * self.D * self.C) / self.frequency
-        time_globle = np.max(time_cmp)
+        print("Computing Time:", time_cmp)
+
+        time_global = np.max(time_cmp)
+        print("Global Time:", time_global)
+
         payment = np.dot(action, self.state)
-        reward = self.lamda*self.train_accuracy[-1] - payment - time_globle
+        print("Payment:", payment)
 
-        state_ = self.state + payment  # todo state transition here for later
-        self.state = state_
+        print("Accuracy:", self.train_accuracy[-1])
 
-        return reward, self.state
+        reward = self.lamda*self.train_accuracy[-1] - payment - time_global
+        print("Reward:", reward)
+        print("###################################################################")
 
 
+        # todo state transition here
+
+        for i in range(self.state.size):
+            if self.state[i]*action[i] > self.history_avg_price[i]:
+                self.state_[i] = 1.05*self.state[i]
+            else:
+                self.state_[i] = 0.85*self.state[i]
+
+        self.state = self.state_
+
+
+        return reward, self.state, self.train_accuracy[-1], payment, time_global
+
+# TODO  The above is Environment
+
+
+
+# TODO  The below is main DRL training progress
 
 if __name__ == '__main__':
 
     configs = Configs()
     env = Env(configs)
-    ppo = PPO()
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 0)
+
+    csvFile1 = open("recording-Dynamic-local-epoch_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
+    writer1 = csv.writer(csvFile1)
+
+    accuracies = []
+    payments = []
+    round_times = []
+
+    rewards = []
+    actions = []
+    closses = []
+    alosses = []
+
 
 
     for EP in range(configs.EP_MAX):
         cur_state = env.reset()
+        observation = cur_state
+        recording = []
+
+        #  learning rate change for trade-off between exploit and explore
+        if EP % 10 == 0:
+            dec =  configs.dec * 0.95
+            A_LR = configs.A_LR * 0.85
+            C_LR = configs.C_LR * 0.85
+
+        buffer_s = []
+        buffer_a = []
+        buffer_r = []
+        sum_accuracy = 0
+        sum_payment = 0
+        sum_round_time =0
+        sum_reward = 0
+        sum_action = 0
+        sum_closs = 0
+        sum_aloss = 0
 
         for t in range(configs.rounds):
-            local_ep_list = input('please input the local epoch list:')
-            local_ep_list = local_ep_list.split(',')
-            local_ep_list = [int(i) for i in local_ep_list]
-            action = local_ep_list
-            # action = PPO.choose_action(cur_state)
-            reward, state_ = env.step(action)
+            # local_ep_list = input('please input the local epoch list:')
+            # local_ep_list = local_ep_list.split(',')
+            # local_ep_list = [int(i) for i in local_ep_list]
+            # action = local_ep_list
+            action = ppo.choose_action(observation, configs.dec)
+            action = 5 * action
+            action = action.astype(int)
+            print("Action", action)
+            reward, next_state, accuracy, pay, round_time = env.step(action)
 
-        # ppo.update()
 
+            sum_accuracy += accuracy
+            sum_payment += pay
+            sum_round_time += round_time
+            sum_reward += reward
+            sum_action += action
+            buffer_a.append(action.copy())
+            buffer_s.append(cur_state.reshape(-1, configs.S_DIM).copy())
+            buffer_r.append(reward)
 
+            cur_state = next_state
+
+            #  ppo.update()
+            if (t + 1) % configs.BATCH == 0:
+                discounted_r = np.zeros(len(buffer_r), 'float32')
+                v_s = ppo.get_v(next_state.reshape(-1, configs.S_DIM))
+                running_add = v_s
+
+                for rd in reversed(range(len(buffer_r))):
+                    running_add = running_add * configs.GAMMA + buffer_r[rd]
+                    discounted_r[rd] = running_add
+
+                discounted_r = discounted_r[np.newaxis, :]
+                discounted_r = np.transpose(discounted_r)
+                if configs.HAVE_TRAIN == False:
+                    closs, aloss = ppo.update(np.vstack(buffer_s), np.vstack(buffer_a), discounted_r, configs.dec, configs.A_LR, configs.C_LR, EP)
+                    sum_closs += closs
+                    sum_aloss += aloss
+
+        if (EP+1) % 1 == 0:
+            print("------------------------------------------------------------------------")
+            print('instant ep:', EP)
+
+            rewards.append(sum_reward / configs.rounds)
+            actions.append(sum_action / configs.rounds)
+            closses.append(sum_closs / configs.rounds)
+            alosses.append(sum_aloss / configs.rounds)
+            accuracies.append(sum_accuracy / configs.rounds)
+            payments.append(sum_payment / configs.rounds)
+            round_times.append(sum_round_time / configs.rounds)
+
+            recording.append(sum_reward / configs.rounds)
+            recording.append(sum_action / configs.rounds)
+            recording.append(sum_closs / configs.rounds)
+            recording.append(sum_aloss / configs.rounds)
+            recording.append(sum_accuracy / configs.rounds)
+            recording.append(sum_payment / configs.rounds)
+            recording.append(sum_round_time / configs.rounds)
+            writer1.writerow(recording)
+
+            print("average reward:", sum_reward / configs.rounds)
+            print("average action:", sum_action / configs.rounds)
+            print("average closs:", sum_closs / configs.rounds)
+            print("average aloss:", sum_aloss / configs.rounds)
+            print("average accuracy:", sum_accuracy / configs.rounds)
+            print("average payment:", sum_payment / configs.rounds)
+            print("average round time:", sum_round_time / configs.rounds)
+
+    plt.plot(rewards)
+    plt.ylabel("Reward")
+    plt.xlabel("Episodes")
+    # plt.savefig("Rewards.png", dpi=200)
+    plt.show()
+
+    plt.plot(actions)
+    plt.ylabel("action")
+    plt.xlabel("Episodes")
+    # plt.savefig("actions.png", dpi=200)
+    plt.show()
+
+    plt.plot(alosses)
+    plt.ylabel("aloss")
+    plt.xlabel("Episodes")
+    # plt.savefig("Rewards.png", dpi=200)
+    plt.show()
+
+    plt.plot(closses)
+    plt.ylabel("closs")
+    plt.xlabel("Episodes")
+    # plt.savefig("Rewards.png", dpi=200)
+    plt.show()
+
+    plt.plot(payments)
+    plt.ylabel("payment")
+    plt.xlabel("Episodes")
+    # plt.savefig("Rewards.png", dpi=200)
+    plt.show()
+
+    plt.plot(round_times)
+    plt.ylabel("round time")
+    plt.xlabel("Episodes")
+    # plt.savefig("Rewards.png", dpi=200)
+    plt.show()
+
+    plt.plot(accuracies)
+    plt.ylabel("accuracy")
+    plt.xlabel("Episodes")
+    # plt.savefig("Rewards.png", dpi=200)
+    plt.show()
+
+    # writer1.writerow(rewards)
+    # writer1.writerow(actions)
+    # writer1.writerow(alosses)
+    # writer1.writerow(closses)
+    # writer1.writerow(accuracies)
+    # writer1.writerow(payments)
+    # writer1.writerow(round_times)
+    csvFile1.close()
 
     # TODO Inference with test data
 

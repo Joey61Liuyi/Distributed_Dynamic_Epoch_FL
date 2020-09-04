@@ -11,7 +11,7 @@ class Configs(object):
 
     def __init__(self):
 
-        ## For FL training
+        ## TODO For FL training
         self.data = 'mnist'
         self.rounds = 1
         self.frac = 1
@@ -21,31 +21,43 @@ class Configs(object):
         self.iid = 0
         self.unequal = 1
 
-        ## For RL
 
-        self.EP_MAX = 200
-
-
-
-
-
+        # TODO for Fderated Env
 
         self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
 
         if self.data == 'cifar':
             theta_num = 62006
-
         else:
             theta_num = 21840
 
         self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
 
-
-
         self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
         self.lamda = 50
         self.C = 20
         self.alpha = 0.1
+        self.local_epoch_range = 10
+
+
+
+        ## TODO For RL
+
+        self.EP_MAX = 2
+        self.S_DIM = 5  # TODO add history later
+        self.A_DIM = 5
+        self.BATCH = 1
+        self.A_UPDATE_STEPS = 1
+        self.C_UPDATE_STEPS = 1
+        self.HAVE_TRAIN = False
+
+        self.dec = 0.3
+        self.A_LR = 0.001  # todo  learning rate influence tendency
+        self.C_LR = 0.001
+        self.GAMMA = 0.95
+        # self.action_space = np.zeros((self.user_num, self.local_epoch_range))
+
+
 
 
 
@@ -89,7 +101,7 @@ class Configs(object):
 #         self.A_LR = 0.00001  # origin:0.00003
 #         self.C_LR = 0.00001
 #         self.GAMMA = 0.95  # origin: 0.95
-#         self.dec = 0.3  #
+#         self.dec = 0.3
 #
 #         self.EP_MAX = 1000  #todo
 #         self.EP_MAX_pre_train = 1000
