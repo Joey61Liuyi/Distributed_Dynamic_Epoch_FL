@@ -43,7 +43,7 @@ class Configs(object):
 
         ## TODO For RL
 
-        self.EP_MAX = 2
+        self.EP_MAX = 50
         self.S_DIM = 5  # TODO add history later
         self.A_DIM = 5
         self.BATCH = 1
@@ -52,8 +52,8 @@ class Configs(object):
         self.HAVE_TRAIN = False
 
         self.dec = 0.3
-        self.A_LR = 0.001  # todo  learning rate influence tendency
-        self.C_LR = 0.001
+        self.A_LR = 0.0001  # todo  learning rate influence tendency
+        self.C_LR = 0.0001
         self.GAMMA = 0.95
         # self.action_space = np.zeros((self.user_num, self.local_epoch_range))
 

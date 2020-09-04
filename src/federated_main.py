@@ -132,6 +132,10 @@ class Env(object):
 
         # TODO  DRL Action
 
+        action = 5*action
+        action = action.astype(int)
+        print("Action", action)
+
         local_ep_list = action
 
         for idx in idxs_users:
@@ -273,11 +277,7 @@ if __name__ == '__main__':
             # local_ep_list = [int(i) for i in local_ep_list]
             # action = local_ep_list
             action = ppo.choose_action(observation, configs.dec)
-            action = 5 * action
-            action = action.astype(int)
-            print("Action", action)
             reward, next_state, accuracy, pay, round_time = env.step(action)
-
 
             sum_accuracy += accuracy
             sum_payment += pay
@@ -320,7 +320,7 @@ if __name__ == '__main__':
             round_times.append(sum_round_time / configs.rounds)
 
             recording.append(sum_reward / configs.rounds)
-            recording.append(sum_action / configs.rounds)
+            recording.append(np.floor(5*(sum_action / configs.rounds)))
             recording.append(sum_closs / configs.rounds)
             recording.append(sum_aloss / configs.rounds)
             recording.append(sum_accuracy / configs.rounds)
