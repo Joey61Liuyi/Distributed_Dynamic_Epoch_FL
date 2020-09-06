@@ -186,7 +186,7 @@ class Env(object):
         if (self.index + 1) % self.print_every == 0:
             print(f' \nAvg Training Stats after {self.index+ 1} global rounds:')
             print(f'Training Loss : {np.mean(np.array(self.train_loss))}')
-            print('Train Accuracy: {:.2f}% \n'.format(100 * self.train_accuracy[-1]))
+            print('Train Accuracy: {:.2f}% \n'.format(100 * self.acc_list[-1]))
 
 
         self.index += 1
@@ -203,10 +203,10 @@ class Env(object):
         payment = np.dot(action, self.state)
         print("Payment:", payment)
 
-        print("Accuracy:", self.train_accuracy[-1])
+        print("Accuracy:", self.acc_list[-1])
 
-        reward = self.lamda*self.train_accuracy[-1] - payment - time_global
-        print("Reward:", reward)
+        reward = (self.lamda*self.acc_list[-1] - payment - time_global) / 10
+        print("Scaling Reward:", reward)
         print("###################################################################")
 
 
@@ -221,7 +221,7 @@ class Env(object):
         self.state = self.state_
 
 
-        return reward, self.state, self.train_accuracy[-1], payment, time_global
+        return reward, self.state, self.acc_list[-1], payment, time_global
 
 # TODO  The above is Environment
 
@@ -235,7 +235,7 @@ if __name__ == '__main__':
     env = Env(configs)
     ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 0)
 
-    csvFile1 = open("recording-Dynamic-local-epoch_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
+    csvFile1 = open("recording2-Dynamic-local-epoch_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
 
     accuracies = []
@@ -291,7 +291,7 @@ if __name__ == '__main__':
             cur_state = next_state
 
             #  ppo.update()
-            if (t + 1) % configs.BATCH == 0:
+            if (t+1) % configs.BATCH == 0:
                 discounted_r = np.zeros(len(buffer_r), 'float32')
                 v_s = ppo.get_v(next_state.reshape(-1, configs.S_DIM))
                 running_add = v_s
@@ -311,7 +311,7 @@ if __name__ == '__main__':
             print("------------------------------------------------------------------------")
             print('instant ep:', EP)
 
-            rewards.append(sum_reward / configs.rounds)
+            rewards.append(sum_reward / configs.rounds * 10)
             actions.append(sum_action / configs.rounds)
             closses.append(sum_closs / configs.rounds)
             alosses.append(sum_aloss / configs.rounds)
@@ -319,7 +319,7 @@ if __name__ == '__main__':
             payments.append(sum_payment / configs.rounds)
             round_times.append(sum_round_time / configs.rounds)
 
-            recording.append(sum_reward / configs.rounds)
+            recording.append(sum_reward / configs.rounds * 10)
             recording.append(np.floor(5*(sum_action / configs.rounds)))
             recording.append(sum_closs / configs.rounds)
             recording.append(sum_aloss / configs.rounds)
@@ -328,7 +328,7 @@ if __name__ == '__main__':
             recording.append(sum_round_time / configs.rounds)
             writer1.writerow(recording)
 
-            print("average reward:", sum_reward / configs.rounds)
+            print("average reward:", sum_reward / configs.rounds * 10)
             print("average action:", sum_action / configs.rounds)
             print("average closs:", sum_closs / configs.rounds)
             print("average aloss:", sum_aloss / configs.rounds)
