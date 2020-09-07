@@ -21,6 +21,8 @@ from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
 from utils import get_dataset, average_weights, exp_details
 import pandas as pd
 import random
+import threading
+
 from configs import Configs
 from DNC_PPO import PPO
 
@@ -49,7 +51,8 @@ class Env(object):
         np.random.seed(self.seed)
         torch.random.manual_seed(self.seed)
         random.seed(self.seed)
-
+        torch.cuda.manual_seed_all(self.seed)
+        torch.cuda.manual_seed(self.seed)
 
         start_time = time.time()
         self.acc_list = []
@@ -61,12 +64,16 @@ class Env(object):
         self.args = args_parser()
         exp_details(self.args)
 
-        torch.cuda.set_device(self.args.gpu)
-        # device = 'cuda' if args.gpu else 'cpu'
-        #
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if configs.gpu:
+            # torch.cuda.set_device(self.args.gpu)
+            # device = 'cuda' if args.gpu else 'cpu'
+            #
 
-        print(device, 'Here')
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        else:
+            device = 'cpu'
+
         # load dataset and user groups
         self.train_dataset, self.test_dataset, self.user_groups = get_dataset(self.args)
 
@@ -106,17 +113,30 @@ class Env(object):
 
         # Training
         self.train_loss, self.train_accuracy = [], []
+        self.test_acc_before = 0
         self.val_acc_list, self.net_list = [], []
         self.cv_loss, self.cv_acc = [], []
-        self.print_every = 2
+        self.print_every = 1
         val_loss_pre, counter = 0, 0
 
         return self.state
 
+    def individual_train(self, idx):
+        local_ep = local_ep_list[idx]
+
+        if local_ep != 0:
+            local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
+                                      idxs=self.user_groups[idx], logger=self.logger)
+            w, loss = local_model.update_weights(
+                model=copy.deepcopy(self.global_model), global_round=self.index, local_ep=local_ep)
+            self.local_weights.append(copy.deepcopy(w))
+            self.local_losses.append(copy.deepcopy(loss))
+
+
 
     def step(self, action):
 
-        local_weights, local_losses = [], []
+        self.local_weights, self.local_losses = [], []
         print(f'\n | Global Training Round : {self.index + 1} |\n')
 
 
@@ -138,19 +158,18 @@ class Env(object):
 
         local_ep_list = action
 
-        for idx in idxs_users:
-            local_ep = local_ep_list[idx]
+        thread_list = []
 
-            if local_ep != 0:
-                local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
-                                          idxs=self.user_groups[idx], logger=self.logger)
-                w, loss = local_model.update_weights(
-                    model=copy.deepcopy(self.global_model), global_round=self.index, local_ep=local_ep)
-                local_weights.append(copy.deepcopy(w))
-                local_losses.append(copy.deepcopy(loss))
+        for idx in idxs_users:
+            thread = threading.Thread(target=self.individual_train, args=(idx,))
+            thread_list.append(thread)
+            thread.start()
+
+        for i in thread_list:
+            i.join()
 
         # update global weights
-        global_weights = average_weights(local_weights)
+        global_weights = average_weights(self.local_weights)
 
         # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # print(global_weights)
@@ -158,7 +177,7 @@ class Env(object):
         # update global weights
         self.global_model.load_state_dict(global_weights)
 
-        loss_avg = sum(local_losses) / len(local_losses)
+        loss_avg = sum(self.local_losses) / len(self.local_losses)
         self.train_loss.append(loss_avg)
 
         # Calculate avg training accuracy over all users at every epoch
@@ -183,10 +202,19 @@ class Env(object):
 
         # print global training loss after every 'i' rounds
 
-        if (self.index + 1) % self.print_every == 0:
-            print(f' \nAvg Training Stats after {self.index+ 1} global rounds:')
-            print(f'Training Loss : {np.mean(np.array(self.train_loss))}')
-            print('Train Accuracy: {:.2f}% \n'.format(100 * self.acc_list[-1]))
+        # if (self.index + 1) % self.print_every == 0:
+        #     print(f' \nAvg Training Stats after {self.index+ 1} global rounds:')
+        #     print(f'Training Loss : {np.mean(np.array(self.train_loss))}')train_accuracy
+        #     print('Train Accuracy: {:.2f}% \n'.format(100 * self.[-1]))
+
+
+        test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
+        delta_acc = test_acc - self.test_acc_before # acc increment for reward
+        self.test_acc_before = test_acc
+
+        print(f' \nAvg Training Stats after {self.index + 1} global rounds:')
+        print(f'Test Loss: {test_loss}')
+        print('Test Accuracy: {:.2f}% \n'.format(100 * test_acc))
 
 
         self.index += 1
@@ -203,32 +231,32 @@ class Env(object):
         payment = np.dot(action, self.state)
         print("Payment:", payment)
 
-        print("Accuracy:", self.acc_list[-1])
+        print("Accuracy:", test_acc, "Accuracy increment:", delta_acc)
 
-        reward = (self.lamda*self.acc_list[-1] - payment - time_global) / 10
+        reward = (self.lamda*delta_acc - payment - time_global) / 10
         print("Scaling Reward:", reward)
         print("###################################################################")
 
 
-        # todo state transition here
+        # # todo state transition here
+        #
+        # for i in range(self.state.size):
+        #     if action[i] == 0:
+        #         # user will decrease its price to join next round if not join the training in this round
+        #         self.state[i] = 0.8 * self.state[i]
+        #     else:
+        #         if self.state[i] * action[i] >= self.history_avg_price[i]:
+        #             # if user's current revenue >= history revenue, it wants to increase price to get more
+        #             self.state_[i] = 1.05 * self.state[i]
+        #             self.history_avg_price[i] = (self.history_avg_price[i]+self.state[i] * action[i]) / 2
+        #         else:
+        #             # if user's current revenue < history revenue, it wants to increase price to get more
+        #             self.state[i] = 0.95 * self.state[i]
+        #             self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
+        #
+        # self.state = self.state_
 
-        for i in range(self.state.size):
-            if action[i] == 0:
-                # user will decrease its price to join next round if not join the training in this round
-                self.state[i] = 0.8 * self.state[i]
-            else:
-                if self.state[i] * action[i] >= self.history_avg_price[i]:
-                    # if user's current revenue >= history revenue, it wants to increase price to get more
-                    self.state_[i] = 1.05 * self.state[i]
-                    self.history_avg_price[i] = (self.history_avg_price[i]+self.state[i] * action[i]) / 2
-                else:
-                    # if user's current revenue < history revenue, it wants to increase price to get more
-                    self.state[i] = 0.95 * self.state[i]
-                    self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
-
-        self.state = self.state_
-
-        return reward, self.state, self.acc_list[-1], payment, time_global
+        return reward, self.state, test_acc, payment, time_global
 
 # TODO  The above is Environment
 

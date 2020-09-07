@@ -20,6 +20,7 @@ class Configs(object):
         self.model = 'cnn'
         self.iid = 0
         self.unequal = 1
+        self.gpu = 1
 
 
         # TODO for Fderated Env
@@ -59,15 +60,6 @@ class Configs(object):
 
 
 
-
-
-
-
-#
-#
-#
-#
-#
 #
 #         self.lamda = 500
 #
