@@ -20,6 +20,7 @@ class Configs(object):
         self.model = 'cnn'
         self.iid = 0
         self.unequal = 1
+        self.gpu = 1
 
         ## For RL
 
@@ -47,15 +48,6 @@ class Configs(object):
         self.C = 20
         self.alpha = 0.1
 
-
-
-
-
-#
-#
-#
-#
-#
 #
 #         self.lamda = 500
 #

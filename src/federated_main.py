@@ -10,7 +10,6 @@ import pickle
 import numpy as np
 from tqdm import tqdm
 
-
 import torch
 from tensorboardX import SummaryWriter
 from RL_brain import PPO
@@ -20,7 +19,13 @@ from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
 from utils import get_dataset, average_weights, exp_details
 import pandas as pd
 import random
+import threading
+
 from configs import Configs
+
+
+def individual_train():
+    pass
 
 def get_parameter_number(net):
     total_num = sum(p.numel() for p in net.parameters())
@@ -45,7 +50,8 @@ class Env(object):
         np.random.seed(self.seed)
         torch.random.manual_seed(self.seed)
         random.seed(self.seed)
-
+        torch.cuda.manual_seed_all(self.seed)
+        torch.cuda.manual_seed(self.seed)
 
         start_time = time.time()
         self.acc_list = []
@@ -57,12 +63,16 @@ class Env(object):
         self.args = args_parser()
         exp_details(self.args)
 
-        torch.cuda.set_device(self.args.gpu)
-        # device = 'cuda' if args.gpu else 'cpu'
-        #
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if configs.gpu:
+            # torch.cuda.set_device(self.args.gpu)
+            # device = 'cuda' if args.gpu else 'cpu'
+            #
 
-        print(device, 'Here')
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        else:
+            device = 'cpu'
+
         # load dataset and user groups
         self.train_dataset, self.test_dataset, self.user_groups = get_dataset(self.args)
 
@@ -104,15 +114,27 @@ class Env(object):
         self.train_loss, self.train_accuracy = [], []
         self.val_acc_list, self.net_list = [], []
         self.cv_loss, self.cv_acc = [], []
-        self.print_every = 2
+        self.print_every = 1
         val_loss_pre, counter = 0, 0
 
         return self.state
 
+    def individual_train(self, idx):
+        local_ep = local_ep_list[idx]
+
+        if local_ep != 0:
+            local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
+                                      idxs=self.user_groups[idx], logger=self.logger)
+            w, loss = local_model.update_weights(
+                model=copy.deepcopy(self.global_model), global_round=self.index, local_ep=local_ep)
+            self.local_weights.append(copy.deepcopy(w))
+            self.local_losses.append(copy.deepcopy(loss))
+
+
 
     def step(self, action):
 
-        local_weights, local_losses = [], []
+        self.local_weights, self.local_losses = [], []
         print(f'\n | Global Training Round : {self.index + 1} |\n')
 
 
@@ -122,27 +144,25 @@ class Env(object):
         idxs_users = np.random.choice(range(self.args.num_users), m, replace=False)
 
         print(idxs_users)
-        # local_ep_list = input('please input the local epoch list:')
+        # local_ep_list = input('please input the local epoch   list:')
         # local_ep_list = local_ep_list.split(',')
         # local_ep_list = [int(i) for i in local_ep_list]
 
         # todo  DRL Action
         local_ep_list = action
 
+        thread_list = []
+
         for idx in idxs_users:
+            thread = threading.Thread(target=self.individual_train, args=(idx,))
+            thread_list.append(thread)
+            thread.start()
 
-            local_ep = local_ep_list[idx]
-
-            if local_ep != 0:
-                local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
-                                          idxs=self.user_groups[idx], logger=self.logger)
-                w, loss = local_model.update_weights(
-                    model=copy.deepcopy(self.global_model), global_round=self.index, local_ep=local_ep)
-                local_weights.append(copy.deepcopy(w))
-                local_losses.append(copy.deepcopy(loss))
+        for i in thread_list:
+            i.join()
 
         # update global weights
-        global_weights = average_weights(local_weights)
+        global_weights = average_weights(self.local_weights)
 
         # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # print(global_weights)
@@ -150,7 +170,7 @@ class Env(object):
         # update global weights
         self.global_model.load_state_dict(global_weights)
 
-        loss_avg = sum(local_losses) / len(local_losses)
+        loss_avg = sum(self.local_losses) / len(self.local_losses)
         self.train_loss.append(loss_avg)
 
         # Calculate avg training accuracy over all users at every epoch
