@@ -13,10 +13,10 @@ class Configs(object):
 
         ## TODO For FL training
         self.data = 'mnist'
-        self.rounds = 1
+        self.rounds = 4
         self.frac = 1
         self.user_num = 5
-        self.FL_LR = 0.01
+        self.FL_LR = 0.005
         self.model = 'cnn'
         self.iid = 0
         self.unequal = 1
@@ -43,7 +43,7 @@ class Configs(object):
 
         ## TODO For RL
 
-        self.EP_MAX = 500
+        self.EP_MAX = 1000
         self.S_DIM = 5  # TODO add history later
         self.A_DIM = 5
         self.BATCH = 1

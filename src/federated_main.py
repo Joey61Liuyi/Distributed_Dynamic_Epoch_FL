@@ -213,13 +213,20 @@ class Env(object):
         # todo state transition here
 
         for i in range(self.state.size):
-            if self.state[i]*action[i] > self.history_avg_price[i]:
-                self.state_[i] = 1.05*self.state[i]
+            if action[i] == 0:
+                # user will decrease its price to join next round if not join the training in this round
+                self.state[i] = 0.8 * self.state[i]
             else:
-                self.state_[i] = 0.85*self.state[i]
+                if self.state[i] * action[i] >= self.history_avg_price[i]:
+                    # if user's current revenue >= history revenue, it wants to increase price to get more
+                    self.state_[i] = 1.05 * self.state[i]
+                    self.history_avg_price[i] = (self.history_avg_price[i]+self.state[i] * action[i]) / 2
+                else:
+                    # if user's current revenue < history revenue, it wants to increase price to get more
+                    self.state[i] = 0.95 * self.state[i]
+                    self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
 
         self.state = self.state_
-
 
         return reward, self.state, self.acc_list[-1], payment, time_global
 
