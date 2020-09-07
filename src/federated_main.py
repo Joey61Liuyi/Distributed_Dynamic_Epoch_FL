@@ -195,18 +195,23 @@ class Env(object):
 
         # print global training loss after every 'i' rounds
 
-        if (self.index + 1) % self.print_every == 0:
-            print(f' \nAvg Training Stats after {self.index+ 1} global rounds:')
-            print(f'Training Loss : {np.mean(np.array(self.train_loss))}')
-            print('Train Accuracy: {:.2f}% \n'.format(100 * self.train_accuracy[-1]))
+        # if (self.index + 1) % self.print_every == 0:
+        #     print(f' \nAvg Training Stats after {self.index+ 1} global rounds:')
+        #     print(f'Training Loss : {np.mean(np.array(self.train_loss))}')
+        #     print('Train Accuracy: {:.2f}% \n'.format(100 * self.train_accuracy[-1]))
 
+
+        test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
+
+        print(f' \nAvg Training Stats after {self.index + 1} global rounds:')
+        print('Test Accuracy: {:.2f}% \n'.format(100 * test_acc))
 
         self.index += 1
 
         time_cmp = (action * self.D * self.C) / self.frequency
         time_globle = np.max(time_cmp)
         payment = np.dot(action, self.state)
-        reward = self.lamda*self.train_accuracy[-1] - payment - time_globle
+        reward = self.lamda*test_acc - payment - time_globle
 
         state_ = self.state + payment  # todo state transition here for later
         self.state = state_
