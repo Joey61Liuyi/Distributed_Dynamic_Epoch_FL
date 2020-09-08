@@ -29,7 +29,8 @@ class LocalUpdate(object):
         self.logger = logger
         self.trainloader, self.validloader, self.testloader = self.train_val_test(
             dataset, list(idxs))
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.device = torch.device("cuda" if args.gpu else "cpu")
         # Default criterion set to NLL loss function
         self.criterion = nn.NLLLoss().to(self.device)
 
