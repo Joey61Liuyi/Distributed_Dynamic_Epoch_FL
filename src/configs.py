@@ -20,15 +20,11 @@ class Configs(object):
         self.model = 'cnn'
         self.iid = 0
         self.unequal = 1
-        self.gpu = 1
+        self.gpu = 0
 
         ## For RL
 
         self.EP_MAX = 200
-
-
-
-
 
 
         self.data_size = np.array([12000, 10000, 8000, 14000, 16000])

@@ -23,10 +23,6 @@ import threading
 
 from configs import Configs
 
-
-def individual_train():
-    pass
-
 def get_parameter_number(net):
     total_num = sum(p.numel() for p in net.parameters())
     trainable_num = sum(p.numel() for p in net.parameters() if p.requires_grad)
@@ -120,7 +116,7 @@ class Env(object):
         return self.state
 
     def individual_train(self, idx):
-        local_ep = local_ep_list[idx]
+        local_ep = self.local_ep_list[idx]
 
         if local_ep != 0:
             local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
@@ -137,7 +133,6 @@ class Env(object):
         self.local_weights, self.local_losses = [], []
         print(f'\n | Global Training Round : {self.index + 1} |\n')
 
-
         pass
         self.global_model.train()
         m = max(int(self.args.frac * self.args.num_users), 1)
@@ -149,7 +144,7 @@ class Env(object):
         # local_ep_list = [int(i) for i in local_ep_list]
 
         # todo  DRL Action
-        local_ep_list = action
+        self.local_ep_list = action
 
         thread_list = []
 
