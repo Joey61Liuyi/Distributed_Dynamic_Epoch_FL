@@ -232,7 +232,7 @@ class Env(object):
 
         print("Accuracy:", test_acc, "Accuracy increment:", delta_acc)
 
-        reward = (self.lamda*delta_acc - payment - time_global) / 10
+        reward = (self.lamda*delta_acc - payment - time_global) / 10    #TODO reward percentage need to be change
         print("Scaling Reward:", reward)
         print("###################################################################")
 
