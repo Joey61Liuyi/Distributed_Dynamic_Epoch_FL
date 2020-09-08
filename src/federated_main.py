@@ -122,7 +122,7 @@ class Env(object):
         return self.state
 
     def individual_train(self, idx):
-        local_ep = local_ep_list[idx]
+        local_ep = self.local_ep_list[idx]
 
         if local_ep != 0:
             local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
@@ -139,24 +139,23 @@ class Env(object):
         self.local_weights, self.local_losses = [], []
         print(f'\n | Global Training Round : {self.index + 1} |\n')
 
-
         pass
         self.global_model.train()
         m = max(int(self.args.frac * self.args.num_users), 1)
         idxs_users = np.random.choice(range(self.args.num_users), m, replace=False)
 
         print(idxs_users)
-        # local_ep_list = input('please input the local epoch list:')
-        # local_ep_list = local_ep_list.split(',')
-        # local_ep_list = [int(i) for i in local_ep_list]
 
         # TODO  DRL Action
 
-        action = 5*action
+        action = 5 * action
         action = action.astype(int)
+
+        if ((action==[0,0,0,0,0]).all()):
+            action = [0,0,0,1,0]
         print("Action", action)
 
-        local_ep_list = action
+        self.local_ep_list = action
 
         thread_list = []
 
@@ -312,6 +311,10 @@ if __name__ == '__main__':
             # local_ep_list = [int(i) for i in local_ep_list]
             # action = local_ep_list
             action = ppo.choose_action(observation, configs.dec)
+            # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            # print(action)
+            # while action == np.array([0,0,0,0,0]):
+            #     action = ppo.choose_action(observation, configs.dec)
             reward, next_state, accuracy, pay, round_time = env.step(action)
 
             sum_accuracy += accuracy
@@ -346,30 +349,30 @@ if __name__ == '__main__':
             print("------------------------------------------------------------------------")
             print('instant ep:', EP)
 
-            rewards.append(sum_reward / configs.rounds * 10)
-            actions.append(sum_action / configs.rounds)
+            rewards.append(sum_reward * 10)
+            # actions.append(sum_action / configs.rounds)
             closses.append(sum_closs / configs.rounds)
             alosses.append(sum_aloss / configs.rounds)
-            accuracies.append(sum_accuracy / configs.rounds)
-            payments.append(sum_payment / configs.rounds)
-            round_times.append(sum_round_time / configs.rounds)
+            accuracies.append(sum_accuracy)
+            payments.append(sum_payment)
+            round_times.append(sum_round_time)
 
-            recording.append(sum_reward / configs.rounds * 10)
-            recording.append(np.floor(5*(sum_action / configs.rounds)))
+            recording.append(sum_reward * 10)
+            # recording.append(np.floor(5*(sum_action / configs.rounds)))
             recording.append(sum_closs / configs.rounds)
             recording.append(sum_aloss / configs.rounds)
-            recording.append(sum_accuracy / configs.rounds)
-            recording.append(sum_payment / configs.rounds)
-            recording.append(sum_round_time / configs.rounds)
+            recording.append(sum_accuracy)
+            recording.append(sum_payment)
+            recording.append(sum_round_time)
             writer1.writerow(recording)
 
-            print("average reward:", sum_reward / configs.rounds * 10)
-            print("average action:", sum_action / configs.rounds)
+            print("average reward:", sum_reward * 10)
+            # print("average action:", sum_action / configs.rounds)
             print("average closs:", sum_closs / configs.rounds)
             print("average aloss:", sum_aloss / configs.rounds)
-            print("average accuracy:", sum_accuracy / configs.rounds)
-            print("average payment:", sum_payment / configs.rounds)
-            print("average round time:", sum_round_time / configs.rounds)
+            print("average accuracy:", sum_accuracy)
+            print("average payment:", sum_payment)
+            print("average round time:", sum_round_time)
 
     plt.plot(rewards)
     plt.ylabel("Reward")
@@ -377,11 +380,11 @@ if __name__ == '__main__':
     # plt.savefig("Rewards.png", dpi=200)
     plt.show()
 
-    plt.plot(actions)
-    plt.ylabel("action")
-    plt.xlabel("Episodes")
-    # plt.savefig("actions.png", dpi=200)
-    plt.show()
+    # plt.plot(actions)
+    # plt.ylabel("action")
+    # plt.xlabel("Episodes")
+    # # plt.savefig("actions.png", dpi=200)
+    # plt.show()
 
     plt.plot(alosses)
     plt.ylabel("aloss")
