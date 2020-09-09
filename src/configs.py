@@ -35,7 +35,7 @@ class Configs(object):
         self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
 
         self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
-        self.lamda = 50
+        self.lamda = 100
         self.C = 20
         self.alpha = 0.1
         self.local_epoch_range = 10
@@ -47,9 +47,9 @@ class Configs(object):
         self.EP_MAX = 1500
         self.S_DIM = 5  # TODO add history later
         self.A_DIM = 5
-        self.BATCH = 1
-        self.A_UPDATE_STEPS = 1
-        self.C_UPDATE_STEPS = 1
+        self.BATCH = 2
+        self.A_UPDATE_STEPS = 2
+        self.C_UPDATE_STEPS = 2
         self.HAVE_TRAIN = False
 
         self.dec = 0.3

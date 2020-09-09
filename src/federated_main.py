@@ -232,7 +232,7 @@ class Env(object):
 
         print("Accuracy:", test_acc, "Accuracy increment:", delta_acc)
 
-        reward = (self.lamda*delta_acc - payment - time_global) / 10    #TODO reward percentage need to be change
+        reward = (self.lamda * delta_acc - payment - time_global) / 10    #TODO reward percentage need to be change
         print("Scaling Reward:", reward)
         print("###################################################################")
 
@@ -255,7 +255,7 @@ class Env(object):
         #
         # self.state = self.state_
 
-        return reward, self.state, test_acc, payment, time_global
+        return reward, self.state, delta_acc, payment, time_global
 
 # TODO  The above is Environment
 
@@ -315,9 +315,9 @@ if __name__ == '__main__':
             # print(action)
             # while action == np.array([0,0,0,0,0]):
             #     action = ppo.choose_action(observation, configs.dec)
-            reward, next_state, accuracy, pay, round_time = env.step(action)
+            reward, next_state, delta_accuracy, pay, round_time = env.step(action)
 
-            sum_accuracy += accuracy
+            sum_accuracy += delta_accuracy
             sum_payment += pay
             sum_round_time += round_time
             sum_reward += reward
@@ -347,7 +347,7 @@ if __name__ == '__main__':
 
         if (EP+1) % 1 == 0:
             print("------------------------------------------------------------------------")
-            print('instant ep:', EP)
+            print('instant ep:', (EP+1))
 
             rewards.append(sum_reward * 10)
             # actions.append(sum_action / configs.rounds)
