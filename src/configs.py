@@ -44,12 +44,12 @@ class Configs(object):
 
         ## TODO For RL
 
-        self.EP_MAX = 1500
+        self.EP_MAX = 300
         self.S_DIM = 5  # TODO add history later
         self.A_DIM = 5
-        self.BATCH = 2
-        self.A_UPDATE_STEPS = 2
-        self.C_UPDATE_STEPS = 2
+        self.BATCH = 1
+        self.A_UPDATE_STEPS = 5
+        self.C_UPDATE_STEPS = 5
         self.HAVE_TRAIN = False
 
         self.dec = 0.3
