@@ -9,7 +9,6 @@ import time
 import pickle
 import numpy as np
 from tqdm import tqdm
-
 import matplotlib.pyplot as plt        #matplotlib inline
 import csv
 
@@ -26,10 +25,6 @@ import threading
 
 from configs import Configs
 from DNC_PPO import PPO
-
-
-def individual_train():
-    pass
 
 def get_parameter_number(net):
     total_num = sum(p.numel() for p in net.parameters())
@@ -72,7 +67,6 @@ class Env(object):
         if configs.gpu:
             # torch.cuda.set_device(self.args.gpu)
             # device = 'cuda' if args.gpu else 'cpu'
-            #
 
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -118,6 +112,7 @@ class Env(object):
 
         # Training
         self.train_loss, self.train_accuracy = [], []
+        self.acc_before = 0
         self.val_acc_list, self.net_list = [], []
         self.cv_loss, self.cv_acc = [], []
         self.print_every = 1
@@ -126,7 +121,7 @@ class Env(object):
         return self.state
 
     def individual_train(self, idx):
-        local_ep = local_ep_list[idx]
+        local_ep = self.local_ep_list[idx]
 
         if local_ep != 0:
             local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
@@ -143,34 +138,49 @@ class Env(object):
         self.local_weights, self.local_losses = [], []
         print(f'\n | Global Training Round : {self.index + 1} |\n')
 
-
         pass
         self.global_model.train()
         m = max(int(self.args.frac * self.args.num_users), 1)
         idxs_users = np.random.choice(range(self.args.num_users), m, replace=False)
 
-        print(idxs_users)
-        # local_ep_list = input('please input the local epoch   list:')
-        # local_ep_list = local_ep_list.split(',')
-        # local_ep_list = [int(i) for i in local_ep_list]
+        print("User index:",idxs_users)
 
         # TODO  DRL Action
 
-        action = 5*action
+        action = 5 * action
         action = action.astype(int)
+
+        if ((action==[0,0,0,0,0]).all()):
+            action = [0,0,0,1,0]
         print("Action", action)
 
-        local_ep_list = action
+        self.local_ep_list = action
 
-        thread_list = []
 
+        #TODO single thread
         for idx in idxs_users:
-            thread = threading.Thread(target=self.individual_train, args=(idx,))
-            thread_list.append(thread)
-            thread.start()
 
-        for i in thread_list:
-            i.join()
+            local_ep = self.local_ep_list[idx]
+
+            if local_ep != 0:
+                local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
+                                          idxs=self.user_groups[idx], logger=self.logger)
+                w, loss = local_model.update_weights(
+                    model=copy.deepcopy(self.global_model), global_round=self.index, local_ep=local_ep)
+                self.local_weights.append(copy.deepcopy(w))
+                self.local_losses.append(copy.deepcopy(loss))
+
+
+        # # TODO multi-thread
+        # thread_list = []
+        # for idx in idxs_users:
+        #     thread = threading.Thread(target=self.individual_train, args=(idx,))
+        #     thread_list.append(thread)
+        #     thread.start()
+        #
+        # for i in thread_list:
+        #     i.join()
+
 
         # update global weights
         global_weights = average_weights(self.local_weights)
@@ -201,22 +211,29 @@ class Env(object):
 
         info = pd.DataFrame([self.acc_list, self.loss_list])
         info = pd.DataFrame(info.values.T, columns=['acc', 'loss'])
-        info.to_csv(
-            str(self.args.num_users) + 'user_' + self.args.dataset + '_' + str(self.args.lr) + '.csv')
+        info.to_csv(str(self.args.num_users) + 'user_' + self.args.dataset + '_' + str(self.args.lr) + '.csv')
 
         # print global training loss after every 'i' rounds
 
-        # if (self.index + 1) % self.print_every == 0:
-        #     print(f' \nAvg Training Stats after {self.index+ 1} global rounds:')
-        #     print(f'Training Loss : {np.mean(np.array(self.train_loss))}')
-        #     print('Train Accuracy: {:.2f}% \n'.format(100 * self.train_accuracy[-1]))
+        delta_acc = np.mean(np.array(self.train_accuracy)) - self.acc_before
+        self.acc_before = np.mean(np.array(self.train_accuracy))
 
 
-        test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
+        if (self.index + 1) % self.print_every == 0:
+            print(f' \nAvg Training Stats after {self.index+ 1} global rounds:')
+            print(f'Training Loss : {np.mean(np.array(self.train_loss))}')
+            print('Train Accuracy: {:.2f}% \n'.format(100 * np.mean(np.array(self.train_accuracy))))
 
-        print(f' \nAvg Training Stats after {self.index + 1} global rounds:')
-        print('Test Loss: {:.2f}% \n'.format(test_loss))
-        print('Test Accuracy: {:.2f}% \n'.format(100 * test_acc))
+
+
+        # TODO    test accuracy
+        # test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
+        # delta_acc = test_acc - self.test_acc_before # acc increment for reward
+        # self.test_acc_before = test_acc
+        #
+        # print(f' \nAvg Training Stats after {self.index + 1} global rounds:')
+        # print(f'Test Loss: {test_loss}')
+        # print('Test Accuracy: {:.2f}% \n'.format(100 * test_acc))
 
         self.index += 1
 
@@ -232,9 +249,9 @@ class Env(object):
         payment = np.dot(action, self.state)
         print("Payment:", payment)
 
-        print("Accuracy:", test_acc)
+        print("Accuracy:", self.train_accuracy[-1], "Accuracy increment:", delta_acc)
 
-        reward = (self.lamda*test_acc - payment - time_globle)/10
+        reward = (self.lamda * delta_acc - payment - time_global) / 10    #TODO reward percentage need to be change
         print("Scaling Reward:", reward)
         print("###################################################################")
 
@@ -244,7 +261,7 @@ class Env(object):
         for i in range(self.state.size):
             if action[i] == 0:
                 # user will decrease its price to join next round if not join the training in this round
-                self.state[i] = 0.8 * self.state[i]
+                self.state_[i] = 0.8 * self.state[i]
             else:
                 if self.state[i] * action[i] >= self.history_avg_price[i]:
                     # if user's current revenue >= history revenue, it wants to increase price to get more
@@ -252,12 +269,12 @@ class Env(object):
                     self.history_avg_price[i] = (self.history_avg_price[i]+self.state[i] * action[i]) / 2
                 else:
                     # if user's current revenue < history revenue, it wants to increase price to get more
-                    self.state[i] = 0.95 * self.state[i]
+                    self.state_[i] = 0.95 * self.state[i]
                     self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
 
         self.state = self.state_
 
-        return reward, self.state, test_acc, payment, time_global
+        return reward, self.state, delta_acc, payment, time_global
 
 # TODO  The above is Environment
 
@@ -313,9 +330,13 @@ if __name__ == '__main__':
             # local_ep_list = [int(i) for i in local_ep_list]
             # action = local_ep_list
             action = ppo.choose_action(observation, configs.dec)
-            reward, next_state, accuracy, pay, round_time = env.step(action)
+            # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            # print(action)
+            # while action == np.array([0,0,0,0,0]):
+            #     action = ppo.choose_action(observation, configs.dec)
+            reward, next_state, delta_accuracy, pay, round_time = env.step(action)
 
-            sum_accuracy += accuracy
+            sum_accuracy += delta_accuracy
             sum_payment += pay
             sum_round_time += round_time
             sum_reward += reward
@@ -345,32 +366,32 @@ if __name__ == '__main__':
 
         if (EP+1) % 1 == 0:
             print("------------------------------------------------------------------------")
-            print('instant ep:', EP)
+            print('instant ep:', (EP+1))
 
-            rewards.append(sum_reward / configs.rounds * 10)
-            actions.append(sum_action / configs.rounds)
+            rewards.append(sum_reward * 10)
+            # actions.append(sum_action / configs.rounds)
             closses.append(sum_closs / configs.rounds)
             alosses.append(sum_aloss / configs.rounds)
-            accuracies.append(sum_accuracy / configs.rounds)
-            payments.append(sum_payment / configs.rounds)
-            round_times.append(sum_round_time / configs.rounds)
+            accuracies.append(sum_accuracy)
+            payments.append(sum_payment)
+            round_times.append(sum_round_time)
 
-            recording.append(sum_reward / configs.rounds * 10)
-            recording.append(np.floor(5*(sum_action / configs.rounds)))
+            recording.append(sum_reward * 10)
+            # recording.append(np.floor(5*(sum_action / configs.rounds)))
             recording.append(sum_closs / configs.rounds)
             recording.append(sum_aloss / configs.rounds)
-            recording.append(sum_accuracy / configs.rounds)
-            recording.append(sum_payment / configs.rounds)
-            recording.append(sum_round_time / configs.rounds)
+            recording.append(sum_accuracy)
+            recording.append(sum_payment)
+            recording.append(sum_round_time)
             writer1.writerow(recording)
 
-            print("average reward:", sum_reward / configs.rounds * 10)
-            print("average action:", sum_action / configs.rounds)
+            print("accumulated reward:", sum_reward * 10)
+            # print("average action:", sum_action / configs.rounds)
             print("average closs:", sum_closs / configs.rounds)
             print("average aloss:", sum_aloss / configs.rounds)
-            print("average accuracy:", sum_accuracy / configs.rounds)
-            print("average payment:", sum_payment / configs.rounds)
-            print("average round time:", sum_round_time / configs.rounds)
+            print("total accuracy:", sum_accuracy)
+            print("total payment:", sum_payment)
+            print("total round time:", sum_round_time)
 
     plt.plot(rewards)
     plt.ylabel("Reward")
@@ -378,11 +399,11 @@ if __name__ == '__main__':
     # plt.savefig("Rewards.png", dpi=200)
     plt.show()
 
-    plt.plot(actions)
-    plt.ylabel("action")
-    plt.xlabel("Episodes")
-    # plt.savefig("actions.png", dpi=200)
-    plt.show()
+    # plt.plot(actions)
+    # plt.ylabel("action")
+    # plt.xlabel("Episodes")
+    # # plt.savefig("actions.png", dpi=200)
+    # plt.show()
 
     plt.plot(alosses)
     plt.ylabel("aloss")
