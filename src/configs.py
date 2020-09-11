@@ -44,7 +44,7 @@ class Configs(object):
 
         ## TODO For RL
 
-        self.EP_MAX = 300
+        self.EP_MAX = 2000
         self.S_DIM = 5  # TODO add history later
         self.A_DIM = 5
         self.BATCH = 1
