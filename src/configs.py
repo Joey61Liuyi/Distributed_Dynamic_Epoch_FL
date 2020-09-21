@@ -20,7 +20,7 @@ class Configs(object):
         self.model = 'cnn'
         self.iid = 0
         self.unequal = 1
-        self.gpu = 0 # 0 = CPU; 1 = GPU
+        self.gpu = 1 # 0 = CPU; 1 = GPU
 
 
         # TODO for Fderated Env
@@ -42,7 +42,7 @@ class Configs(object):
 
 
 
-        ## TODO For RL
+        ## TODO For RL training
 
         self.EP_MAX = 2000
         self.S_DIM = 5  # TODO add history later
@@ -57,6 +57,9 @@ class Configs(object):
         self.C_LR = 0.00003
         self.GAMMA = 0.95
         # self.action_space = np.zeros((self.user_num, self.local_epoch_range))
+
+        ## TODO For RL inference
+        self.infer_round = 50
 
 
 

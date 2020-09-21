@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# Python version: 3.6
-
 
 import os
 import copy
@@ -287,162 +283,68 @@ if __name__ == '__main__':
 
     configs = Configs()
     env = Env(configs)
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 0)
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, True, 0)
 
-    csvFile1 = open("recording2-Dynamic-local-epoch_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
+    csvFile1 = open("recording-PPO-inference-" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
 
-    accuracies = []
-    payments = []
-    round_times = []
+    accuracylist = []
+    paymentlist = []
+    round_timelist = []
 
-    rewards = []
-    actions = []
-    closses = []
-    alosses = []
+    rewardlist = []
+    actionlist = []
 
 
+    cur_state = env.reset()
+    observation = cur_state
 
-    for EP in range(configs.EP_MAX):
-        cur_state = env.reset()
+    recording = []
+    sum_accuracy = 0
+    sum_payment = 0
+    sum_round_time = 0
+    sum_reward = 0
+    sum_action = 0
+    sum_closs = 0
+    sum_aloss = 0
+
+    for rounds in range(configs.infer_round):
+        action = ppo.choose_action(observation, configs.dec)
+        # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        # print(action)
+        # while action == np.array([0,0,0,0,0]):
+        #     action = ppo.choose_action(observation, configs.dec)
+        reward, next_state, delta_accuracy, pay, round_time = env.step(action) #todo reward here is scaled, need to modify
+
+        accuracylist.append(delta_accuracy)
+        paymentlist.append(pay)
+        round_timelist.append(round_time)
+        rewardlist.append(reward * 10)
+        actionlist.append(action)
+
+        sum_accuracy += delta_accuracy
+        sum_payment += pay
+        sum_round_time += round_time
+        sum_reward += reward
+        sum_action += action
+
+        cur_state = next_state
         observation = cur_state
-        recording = []
 
-        #  learning rate change for trade-off between exploit and explore
-        if EP % 10 == 0:
-            dec =  configs.dec * 0.95
-            A_LR = configs.A_LR * 0.85
-            C_LR = configs.C_LR * 0.85
+        recording.append(sum_reward * 10)
+        recording.append(sum_closs)
+        recording.append(sum_aloss)
+        recording.append(sum_accuracy)
+        recording.append(sum_payment)
+        recording.append(sum_round_time)
+        writer1.writerow(recording)
 
-        buffer_s = []
-        buffer_a = []
-        buffer_r = []
-        sum_accuracy = 0
-        sum_payment = 0
-        sum_round_time =0
-        sum_reward = 0
-        sum_action = 0
-        sum_closs = 0
-        sum_aloss = 0
+    print("accumulated reward:", sum_reward * 10)
+    # print("average action:", sum_action / configs.rounds)
+    print("total accuracy:", sum_accuracy)
+    print("total payment:", sum_payment)
+    print("total round time:", sum_round_time)
 
-        for t in range(configs.rounds):
-            # local_ep_list = input('please input the local epoch list:')
-            # local_ep_list = local_ep_list.split(',')
-            # local_ep_list = [int(i) for i in local_ep_list]
-            # action = local_ep_list
-            action = ppo.choose_action(observation, configs.dec)
-            # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            # print(action)
-            # while action == np.array([0,0,0,0,0]):
-            #     action = ppo.choose_action(observation, configs.dec)
-            reward, next_state, delta_accuracy, pay, round_time = env.step(action)
-
-            sum_accuracy += delta_accuracy
-            sum_payment += pay
-            sum_round_time += round_time
-            sum_reward += reward
-            sum_action += action
-            buffer_a.append(action.copy())
-            buffer_s.append(cur_state.reshape(-1, configs.S_DIM).copy())
-            buffer_r.append(reward)
-
-            cur_state = next_state
-
-            #  ppo.update()
-            if (t+1) % configs.BATCH == 0:
-                discounted_r = np.zeros(len(buffer_r), 'float32')
-                v_s = ppo.get_v(next_state.reshape(-1, configs.S_DIM))
-                running_add = v_s
-
-                for rd in reversed(range(len(buffer_r))):
-                    running_add = running_add * configs.GAMMA + buffer_r[rd]
-                    discounted_r[rd] = running_add
-
-                discounted_r = discounted_r[np.newaxis, :]
-                discounted_r = np.transpose(discounted_r)
-                if configs.HAVE_TRAIN == False:
-                    closs, aloss = ppo.update(np.vstack(buffer_s), np.vstack(buffer_a), discounted_r, configs.dec, configs.A_LR, configs.C_LR, EP+1)
-                    sum_closs += closs
-                    sum_aloss += aloss
-
-        if (EP+1) % 1 == 0:
-            print("------------------------------------------------------------------------")
-            print('instant ep:', (EP+1))
-
-            rewards.append(sum_reward * 10)
-            # actions.append(sum_action / configs.rounds)
-            closses.append(sum_closs / configs.rounds)
-            alosses.append(sum_aloss / configs.rounds)
-            accuracies.append(sum_accuracy)
-            payments.append(sum_payment)
-            round_times.append(sum_round_time)
-
-            recording.append(sum_reward * 10)
-            # recording.append(np.floor(5*(sum_action / configs.rounds)))
-            recording.append(sum_closs / configs.rounds)
-            recording.append(sum_aloss / configs.rounds)
-            recording.append(sum_accuracy)
-            recording.append(sum_payment)
-            recording.append(sum_round_time)
-            writer1.writerow(recording)
-
-            print("accumulated reward:", sum_reward * 10)
-            # print("average action:", sum_action / configs.rounds)
-            print("average closs:", sum_closs / configs.rounds)
-            print("average aloss:", sum_aloss / configs.rounds)
-            print("total accuracy:", sum_accuracy)
-            print("total payment:", sum_payment)
-            print("total round time:", sum_round_time)
-
-    plt.plot(rewards)
-    plt.ylabel("Reward")
-    plt.xlabel("Episodes")
-    # plt.savefig("Rewards.png", dpi=200)
-    plt.show()
-
-    # plt.plot(actions)
-    # plt.ylabel("action")
-    # plt.xlabel("Episodes")
-    # # plt.savefig("actions.png", dpi=200)
-    # plt.show()
-
-    plt.plot(alosses)
-    plt.ylabel("aloss")
-    plt.xlabel("Episodes")
-    # plt.savefig("Rewards.png", dpi=200)
-    plt.show()
-
-    plt.plot(closses)
-    plt.ylabel("closs")
-    plt.xlabel("Episodes")
-    # plt.savefig("Rewards.png", dpi=200)
-    plt.show()
-
-    plt.plot(payments)
-    plt.ylabel("payment")
-    plt.xlabel("Episodes")
-    # plt.savefig("Rewards.png", dpi=200)
-    plt.show()
-
-    plt.plot(round_times)
-    plt.ylabel("round time")
-    plt.xlabel("Episodes")
-    # plt.savefig("Rewards.png", dpi=200)
-    plt.show()
-
-    plt.plot(accuracies)
-    plt.ylabel("accuracy")
-    plt.xlabel("Episodes")
-    # plt.savefig("Rewards.png", dpi=200)
-    plt.show()
-
-    # writer1.writerow(rewards)
-    # writer1.writerow(actions)
-    # writer1.writerow(alosses)
-    # writer1.writerow(closses)
-    # writer1.writerow(accuracies)
-    # writer1.writerow(payments)
-    # writer1.writerow(round_times)
     csvFile1.close()
 #
 #     # TODO Inference with test data
@@ -463,130 +365,3 @@ if __name__ == '__main__':
 #     # file_name = 'save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
 #     #     format(args.dataset, args.model, args.epochs, args.frac, args.iid,
 #     #            args.local_ep, args.local_bs)
-
-
-# TODO  The below is Greedy training progress
-# TODO check the random seed in Env reset !!!!!!!!!!!!!!!!!!  line 53-57
-# if __name__ == '__main__':
-#
-#     configs = Configs()
-#     env = Env(configs)
-#     # ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 0)
-#
-#     csvFile1 = open("recording-Greedy_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
-#     writer1 = csv.writer(csvFile1)
-#
-#     accuracies = []
-#     payments = []
-#     round_times = []
-#     rewards = []
-#     actions = []
-#     Actionset_list = []
-#
-#     for EP in range(configs.EP_MAX):
-#
-#         cur_state = env.reset()
-#
-#         sum_accuracy = 0
-#         sum_payment = 0
-#         sum_round_time = 0
-#         sum_reward = 0
-#         recording = []
-#
-#         if len(Actionset_list) < 20:    # action in first 20 episode is randomly chose
-#             actionset = np.random.random(configs.rounds * configs.A_DIM)
-#             actionset = actionset.reshape(configs.rounds, configs.A_DIM)
-#         else:
-#             tep = np.random.random(1)[0]
-#             if tep <= 0.2:    # 20% to randomly choose action
-#                 actionset = np.random.random(configs.rounds * configs.A_DIM)
-#                 actionset = actionset.reshape(configs.rounds, configs.A_DIM)
-#             else:     # 80% to choose the Max-R action (Greedy)
-#                 actionset = Actionset_list[0][0]
-#         print("ActionSet:", actionset)
-#
-#         for t in range(configs.rounds):
-#             action = actionset[t]
-#             reward, next_state, delta_accuracy, pay, round_time = env.step(action)
-#             sum_accuracy += delta_accuracy
-#             sum_payment += pay
-#             sum_round_time += round_time
-#             sum_reward += reward
-#             cur_state = next_state
-#
-#         # if action-set is unchanged (80% greedy), then remove it and re-add it with its new reward in this round
-#         # if action-set is changed (20% random), then add it to the actionset-list
-#         for one in Actionset_list:
-#             if (one[0] == actionset).all():
-#                 Actionset_list.remove(one)
-#
-#         # add the actionset in this round and sort actionset-list by Reward in descending order
-#         Actionset_list.append((actionset, sum_reward))
-#         Actionset_list = sorted(Actionset_list, key=lambda x: x[1], reverse=True)
-#         print("ActionSet-List:", Actionset_list)
-#
-#         # if action-set is unchanged (80% greedy),the actionset-list = 20 and no one will pop
-#         # if action-set is changed (20% random), pop the last actionset (sorted with Min-R)
-#         if len(Actionset_list) > 20:
-#             Actionset_list.pop()
-#
-#         if (EP+1) % 1 == 0:
-#             print("------------------------------------------------------------------------")
-#             print('instant ep:', (EP+1) )
-#
-#             rewards.append(sum_reward * 10)
-#             # actions.append(sum_action / configs.rounds)
-#             accuracies.append(sum_accuracy)
-#             payments.append(sum_payment)
-#             round_times.append(sum_round_time)
-#
-#             recording.append(sum_reward * 10)
-#             # recording.append(np.floor(5*(sum_action / configs.rounds)))
-#             recording.append(sum_accuracy)
-#             recording.append(sum_payment)
-#             recording.append(sum_round_time)
-#             writer1.writerow(recording)
-#
-#             print("accumulated reward:", sum_reward * 10)
-#             # print("average action:", sum_action / configs.rounds)
-#             print("total accuracy:", sum_accuracy)
-#             print("total payment:", sum_payment)
-#             print("total round time:", sum_round_time)
-#
-#             print("ROUND END ##############################################################")
-#
-#
-#     plt.plot(rewards)
-#     plt.ylabel("Reward")
-#     plt.xlabel("Episodes")
-#     # plt.savefig("Rewards.png", dpi=200)
-#     plt.show()
-#
-#     # plt.plot(actions)
-#     # plt.ylabel("action")
-#     # plt.xlabel("Episodes")
-#     # # plt.savefig("actions.png", dpi=200)
-#     # plt.show()
-#
-#     plt.plot(payments)
-#     plt.ylabel("payment")
-#     plt.xlabel("Episodes")
-#     # plt.savefig("Rewards.png", dpi=200)
-#     plt.show()
-#
-#     plt.plot(round_times)
-#     plt.ylabel("round time")
-#     plt.xlabel("Episodes")
-#     # plt.savefig("Rewards.png", dpi=200)
-#     plt.show()
-#
-#     plt.plot(accuracies)
-#     plt.ylabel("accuracy")
-#     plt.xlabel("Episodes")
-#     # plt.savefig("Rewards.png", dpi=200)
-#     plt.show()
-#
-#     csvFile1.close()
-
-
-
