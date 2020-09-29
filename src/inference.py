@@ -44,13 +44,14 @@ class Env(object):
         self.index = 0
         self.state = 0.0001 * self.data_size + self.frequency  #TODO
         self.state_ = np.zeros(configs.user_num)
+        self.state_min = 0.7 * self.state
 
         # todo annotate these random seed if run greedy, save them when run DRL
-        # np.random.seed(self.seed)
-        # torch.random.manual_seed(self.seed)
-        # random.seed(self.seed)
-        # torch.cuda.manual_seed_all(self.seed)
-        # torch.cuda.manual_seed(self.seed)
+        np.random.seed(self.seed)
+        torch.random.manual_seed(self.seed)
+        random.seed(self.seed)
+        torch.cuda.manual_seed_all(self.seed)
+        torch.cuda.manual_seed(self.seed)
 
         start_time = time.time()
         self.acc_list = []
@@ -130,7 +131,6 @@ class Env(object):
             self.local_losses.append(copy.deepcopy(loss))
 
 
-
     def step(self, action):
 
         self.local_weights, self.local_losses = [], []
@@ -205,7 +205,7 @@ class Env(object):
         self.train_accuracy.append(sum(list_acc) / len(list_acc))
 
         self.loss_list.append(np.mean(np.array(self.train_loss)))
-        self.acc_list.append(np.mean(np.array(self.train_accuracy)))
+        self.acc_list.append(np.mean(np.array(self.train_accuracy)))   # todo np.mean(np.array(self.train_accuracy))    self.train_accuracy[-1]
 
         info = pd.DataFrame([self.acc_list, self.loss_list])
         info = pd.DataFrame(info.values.T, columns=['acc', 'loss'])
@@ -214,13 +214,16 @@ class Env(object):
         # print global training loss after every 'i' rounds
 
         delta_acc = np.mean(np.array(self.train_accuracy)) - self.acc_before
+        # todo  np.mean(np.array(self.train_accuracy))   self.train_accuracy[-1]
         self.acc_before = np.mean(np.array(self.train_accuracy))
+        # todo  np.mean(np.array(self.train_accuracy))   self.train_accuracy[-1]
 
 
         if (self.index + 1) % self.print_every == 0:
             print(f' \nAvg Training Stats after {self.index+ 1} global rounds:')
             print(f'Training Loss : {np.mean(np.array(self.train_loss))}')
             print('Train Accuracy: {:.2f}% \n'.format(100 * np.mean(np.array(self.train_accuracy))))
+            # todo  np.mean(np.array(self.train_accuracy))      self.train_accuracy[-1]
 
 
 
@@ -248,6 +251,7 @@ class Env(object):
         print("Payment:", payment)
 
         print("Accuracy:", self.train_accuracy[-1], "Accuracy increment:", delta_acc)
+        # todo  np.mean(np.array(self.train_accuracy))      self.train_accuracy[-1]
 
         reward = (self.lamda * delta_acc - payment - time_global) / 10    #TODO reward percentage need to be change
         print("Scaling Reward:", reward)
@@ -259,14 +263,20 @@ class Env(object):
             if action[i] == 0:
                 # user will decrease its price to join next round if not join the training in this round
                 self.state_[i] = 0.8 * self.state[i]
+                if self.state_[i] < self.state_min[i]:
+                    self.state_[i] = self.state_min[i]
             else:
                 if self.state[i] * action[i] >= self.history_avg_price[i]:
                     # if user's current revenue >= history revenue, it wants to increase price to get more
                     self.state_[i] = 1.05 * self.state[i]
+                    if self.state_[i] < self.state_min[i]:
+                        self.state_[i] = self.state_min[i]
                     self.history_avg_price[i] = (self.history_avg_price[i]+self.state[i] * action[i]) / 2
                 else:
                     # if user's current revenue < history revenue, it wants to increase price to get more
                     self.state_[i] = 0.95 * self.state[i]
+                    if self.state_[i] < self.state_min[i]:
+                        self.state_[i] = self.state_min[i]
                     self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
 
         self.state = self.state_
@@ -283,7 +293,7 @@ if __name__ == '__main__':
 
     configs = Configs()
     env = Env(configs)
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, True, 0)
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, True, 3)
 
     csvFile1 = open("recording-PPO-inference-" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
@@ -294,21 +304,19 @@ if __name__ == '__main__':
 
     rewardlist = []
     actionlist = []
+    statelist = []
 
 
     cur_state = env.reset()
     observation = cur_state
 
-    recording = []
     sum_accuracy = 0
     sum_payment = 0
     sum_round_time = 0
     sum_reward = 0
-    sum_action = 0
-    sum_closs = 0
-    sum_aloss = 0
 
     for rounds in range(configs.infer_round):
+        recording = []
         action = ppo.choose_action(observation, configs.dec)
         # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         # print(action)
@@ -316,24 +324,27 @@ if __name__ == '__main__':
         #     action = ppo.choose_action(observation, configs.dec)
         reward, next_state, delta_accuracy, pay, round_time = env.step(action) #todo reward here is scaled, need to modify
 
-        accuracylist.append(delta_accuracy)
-        paymentlist.append(pay)
-        round_timelist.append(round_time)
-        rewardlist.append(reward * 10)
-        actionlist.append(action)
+        action = 5 * action
+        action = action.astype(int)
 
         sum_accuracy += delta_accuracy
         sum_payment += pay
         sum_round_time += round_time
         sum_reward += reward
-        sum_action += action
 
         cur_state = next_state
         observation = cur_state
 
+        rewardlist.append(sum_reward*10)
+        statelist.append(next_state)
+        actionlist.append(action)
+        accuracylist.append(sum_accuracy)
+        paymentlist.append(sum_payment)
+        round_timelist.append(sum_round_time)
+
         recording.append(sum_reward * 10)
-        recording.append(sum_closs)
-        recording.append(sum_aloss)
+        recording.append(next_state)
+        recording.append(action)
         recording.append(sum_accuracy)
         recording.append(sum_payment)
         recording.append(sum_round_time)
@@ -346,6 +357,8 @@ if __name__ == '__main__':
     print("total round time:", sum_round_time)
 
     csvFile1.close()
+
+
 #
 #     # TODO Inference with test data
 #

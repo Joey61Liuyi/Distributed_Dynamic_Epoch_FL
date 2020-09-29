@@ -48,13 +48,14 @@ class Env(object):
         self.index = 0
         self.state = 0.0001 * self.data_size + self.frequency  #TODO
         self.state_ = np.zeros(configs.user_num)
+        self.state_min = 0.7 * self.state
 
         # todo annotate these random seed if run greedy, save them when run DRL
-        # np.random.seed(self.seed)
-        # torch.random.manual_seed(self.seed)
-        # random.seed(self.seed)
-        # torch.cuda.manual_seed_all(self.seed)
-        # torch.cuda.manual_seed(self.seed)
+        np.random.seed(self.seed)
+        torch.random.manual_seed(self.seed)
+        random.seed(self.seed)
+        torch.cuda.manual_seed_all(self.seed)
+        torch.cuda.manual_seed(self.seed)
 
         start_time = time.time()
         self.acc_list = []
@@ -133,8 +134,6 @@ class Env(object):
             self.local_weights.append(copy.deepcopy(w))
             self.local_losses.append(copy.deepcopy(loss))
 
-
-
     def step(self, action):
 
         self.local_weights, self.local_losses = [], []
@@ -153,7 +152,7 @@ class Env(object):
         action = action.astype(int)
 
         if ((action==[0,0,0,0,0]).all()):
-            action = [0,0,0,1,0]
+            action = [0,0,1,0,0]
         print("Action", action)
 
         self.local_ep_list = action
@@ -263,14 +262,21 @@ class Env(object):
             if action[i] == 0:
                 # user will decrease its price to join next round if not join the training in this round
                 self.state_[i] = 0.8 * self.state[i]
+                if self.state_[i] < self.state_min[i]:
+                    self.state_[i] = self.state_min[i]
+
             else:
                 if self.state[i] * action[i] >= self.history_avg_price[i]:
                     # if user's current revenue >= history revenue, it wants to increase price to get more
                     self.state_[i] = 1.05 * self.state[i]
-                    self.history_avg_price[i] = (self.history_avg_price[i]+self.state[i] * action[i]) / 2
+                    if self.state_[i] < self.state_min[i]:
+                        self.state_[i] = self.state_min[i]
+                    self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
                 else:
                     # if user's current revenue < history revenue, it wants to increase price to get more
                     self.state_[i] = 0.95 * self.state[i]
+                    if self.state_[i] < self.state_min[i]:
+                        self.state_[i] = self.state_min[i]
                     self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
 
         self.state = self.state_
@@ -287,7 +293,8 @@ if __name__ == '__main__':
 
     configs = Configs()
     env = Env(configs)
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 0)
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 3)
+    #todo num=0 earlest; num=1 on CPU; num=2 on GPU; num=3 round=10
 
     csvFile1 = open("recording2-Dynamic-local-epoch_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
@@ -309,7 +316,7 @@ if __name__ == '__main__':
         recording = []
 
         #  learning rate change for trade-off between exploit and explore
-        if EP % 10 == 0:
+        if EP % 20 == 0:
             dec =  configs.dec * 0.95
             A_LR = configs.A_LR * 0.85
             C_LR = configs.C_LR * 0.85
@@ -319,7 +326,7 @@ if __name__ == '__main__':
         buffer_r = []
         sum_accuracy = 0
         sum_payment = 0
-        sum_round_time =0
+        sum_round_time = 0
         sum_reward = 0
         sum_action = 0
         sum_closs = 0
@@ -337,6 +344,7 @@ if __name__ == '__main__':
             #     action = ppo.choose_action(observation, configs.dec)
             reward, next_state, delta_accuracy, pay, round_time = env.step(action)
 
+
             sum_accuracy += delta_accuracy
             sum_payment += pay
             sum_round_time += round_time
@@ -345,11 +353,13 @@ if __name__ == '__main__':
             buffer_a.append(action.copy())
             buffer_s.append(cur_state.reshape(-1, configs.S_DIM).copy())
             buffer_r.append(reward)
+            recording.append(next_state)
 
             cur_state = next_state
 
             #  ppo.update()
             if (t+1) % configs.BATCH == 0:
+                print("------------PPO UPDATED------------")
                 discounted_r = np.zeros(len(buffer_r), 'float32')
                 v_s = ppo.get_v(next_state.reshape(-1, configs.S_DIM))
                 running_add = v_s

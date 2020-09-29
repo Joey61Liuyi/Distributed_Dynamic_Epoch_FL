@@ -13,14 +13,14 @@ class Configs(object):
 
         ## TODO For FL training
         self.data = 'mnist'
-        self.rounds = 2
+        self.rounds = 10    #todo change update batch
         self.frac = 1
         self.user_num = 5
         self.FL_LR = 0.005
         self.model = 'cnn'
         self.iid = 0
         self.unequal = 1
-        self.gpu = 1 # 0 = CPU; 1 = GPU
+        self.gpu = 1   # 0 = CPU; 1 = GPU
 
 
         # TODO for Fderated Env
@@ -35,7 +35,7 @@ class Configs(object):
         self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
 
         self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
-        self.lamda = 100
+        self.lamda = 500    # todo changed for 10 rounds
         self.C = 20
         self.alpha = 0.1
         self.local_epoch_range = 10
@@ -47,7 +47,7 @@ class Configs(object):
         self.EP_MAX = 2000
         self.S_DIM = 5  # TODO add history later
         self.A_DIM = 5
-        self.BATCH = 1
+        self.BATCH = 10
         self.A_UPDATE_STEPS = 5
         self.C_UPDATE_STEPS = 5
         self.HAVE_TRAIN = False
