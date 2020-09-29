@@ -46,9 +46,9 @@ class Env(object):
 
     def reset(self):
         self.index = 0
-        self.state = 0.0001 * self.data_size + self.frequency  #TODO
-        self.state_ = np.zeros(configs.user_num)
-        self.state_min = 0.7 * self.state
+        self.bid = 0.0001 * self.data_size + self.frequency  #TODO
+        self.bid_ = np.zeros(configs.user_num)
+        self.bid_min = 0.7 * self.bid
 
         # todo annotate these random seed if run greedy, save them when run DRL
         np.random.seed(self.seed)
@@ -121,18 +121,21 @@ class Env(object):
         self.print_every = 1
         val_loss_pre, counter = 0, 0
 
-        return self.state
+        return self.bid
 
-    def individual_train(self, idx):
-        local_ep = self.local_ep_list[idx]
 
-        if local_ep != 0:
-            local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
-                                      idxs=self.user_groups[idx], logger=self.logger)
-            w, loss = local_model.update_weights(
-                model=copy.deepcopy(self.global_model), global_round=self.index, local_ep=local_ep)
-            self.local_weights.append(copy.deepcopy(w))
-            self.local_losses.append(copy.deepcopy(loss))
+    # TODO   for multi- thread
+    # def individual_train(self, idx):
+    #     local_ep = self.local_ep_list[idx]
+    #
+    #     if local_ep != 0:
+    #         local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
+    #                                   idxs=self.user_groups[idx], logger=self.logger)
+    #         w, loss = local_model.update_weights(
+    #             model=copy.deepcopy(self.global_model), global_round=self.index, local_ep=local_ep)
+    #         self.local_weights.append(copy.deepcopy(w))
+    #         self.local_losses.append(copy.deepcopy(loss))
+
 
     def step(self, action):
 
@@ -247,7 +250,7 @@ class Env(object):
         time_global = np.max(time_cmp)
         print("Global Time:", time_global)
 
-        payment = np.dot(action, self.state)
+        payment = np.dot(action, self.bid)
         print("Payment:", payment)
 
         print("Accuracy:", self.train_accuracy[-1], "Accuracy increment:", delta_acc)
@@ -258,30 +261,30 @@ class Env(object):
 
         # todo state transition here
 
-        for i in range(self.state.size):
+        for i in range(self.bid.size):
             if action[i] == 0:
                 # user will decrease its price to join next round if not join the training in this round
-                self.state_[i] = 0.8 * self.state[i]
-                if self.state_[i] < self.state_min[i]:
-                    self.state_[i] = self.state_min[i]
+                self.bid_[i] = 0.8 * self.bid[i]
+                if self.bid_[i] < self.bid_min[i]:
+                    self.bid_[i] = self.bid_min[i]
 
             else:
-                if self.state[i] * action[i] >= self.history_avg_price[i]:
+                if self.bid[i] * action[i] >= self.history_avg_price[i]:
                     # if user's current revenue >= history revenue, it wants to increase price to get more
-                    self.state_[i] = 1.05 * self.state[i]
-                    if self.state_[i] < self.state_min[i]:
-                        self.state_[i] = self.state_min[i]
-                    self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
+                    self.bid_[i] = 1.05 * self.bid[i]
+                    if self.bid_[i] < self.bid_min[i]:
+                        self.bid_[i] = self.bid_min[i]
+                    self.history_avg_price[i] = (self.history_avg_price[i] + self.bid[i] * action[i]) / 2
                 else:
                     # if user's current revenue < history revenue, it wants to increase price to get more
-                    self.state_[i] = 0.95 * self.state[i]
-                    if self.state_[i] < self.state_min[i]:
-                        self.state_[i] = self.state_min[i]
-                    self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
+                    self.bid_[i] = 0.95 * self.bid[i]
+                    if self.bid_[i] < self.bid_min[i]:
+                        self.bid_[i] = self.bid_min[i]
+                    self.history_avg_price[i] = (self.history_avg_price[i] + self.bid[i] * action[i]) / 2
 
-        self.state = self.state_
+        self.bid = self.bid_
 
-        return reward, self.state, delta_acc, payment, time_global
+        return reward, self.bid, delta_acc, payment, time_global
 
 # TODO  The above is Environment
 
@@ -293,7 +296,7 @@ if __name__ == '__main__':
 
     configs = Configs()
     env = Env(configs)
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 3)
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 0)
     #todo num=0 earlest; num=1 on CPU; num=2 on GPU; num=3 round=10
 
     csvFile1 = open("recording2-Dynamic-local-epoch_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
@@ -308,16 +311,14 @@ if __name__ == '__main__':
     closses = []
     alosses = []
 
-
-
     for EP in range(configs.EP_MAX):
-        cur_state = env.reset()
-        observation = cur_state
+        cur_bid = env.reset()
+        cur_state = np.append(cur_bid, 0) #TODO  add index into state
         recording = []
 
         #  learning rate change for trade-off between exploit and explore
         if EP % 20 == 0:
-            dec =  configs.dec * 0.95
+            dec = configs.dec * 0.95
             A_LR = configs.A_LR * 0.85
             C_LR = configs.C_LR * 0.85
 
@@ -337,13 +338,12 @@ if __name__ == '__main__':
             # local_ep_list = local_ep_list.split(',')
             # local_ep_list = [int(i) for i in local_ep_list]
             # action = local_ep_list
-            action = ppo.choose_action(observation, configs.dec)
+            action = ppo.choose_action(cur_state, configs.dec)
             # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             # print(action)
             # while action == np.array([0,0,0,0,0]):
             #     action = ppo.choose_action(observation, configs.dec)
-            reward, next_state, delta_accuracy, pay, round_time = env.step(action)
-
+            reward, next_bid, delta_accuracy, pay, round_time = env.step(action)
 
             sum_accuracy += delta_accuracy
             sum_payment += pay
@@ -353,8 +353,11 @@ if __name__ == '__main__':
             buffer_a.append(action.copy())
             buffer_s.append(cur_state.reshape(-1, configs.S_DIM).copy())
             buffer_r.append(reward)
-            recording.append(next_state)
+            recording.append(next_bid)
 
+            next_state = np.append(next_bid, t+1)
+            print("Current State:", cur_state)
+            print("Next State:", next_state)
             cur_state = next_state
 
             #  ppo.update()
