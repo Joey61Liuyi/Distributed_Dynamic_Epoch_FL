@@ -112,7 +112,6 @@ class Env(object):
         self.cv_loss, self.cv_acc = [], []
         self.print_every = 1
         val_loss_pre, counter = 0, 0
-
         return self.state
 
     def individual_train(self, idx):
@@ -200,6 +199,7 @@ class Env(object):
 
         print(f' \nAvg Training Stats after {self.index + 1} global rounds:')
         print('Test Accuracy: {:.2f}% \n'.format(100 * test_acc))
+        print('Train Accuracy: {:.2f}% \n'.format(100 * np.mean(np.array(self.train_accuracy))))
 
         self.index += 1
 
