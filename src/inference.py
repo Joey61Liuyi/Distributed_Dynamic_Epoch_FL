@@ -42,9 +42,9 @@ class Env(object):
 
     def reset(self):
         self.index = 0
-        self.state = 0.0001 * self.data_size + self.frequency  #TODO
-        self.state_ = np.zeros(configs.user_num)
-        self.state_min = 0.7 * self.state
+        self.bid = 0.0001 * self.data_size + self.frequency  #TODO
+        self.bid_ = np.zeros(configs.user_num)
+        self.bid_min = 0.7 * self.bid
 
         # todo annotate these random seed if run greedy, save them when run DRL
         np.random.seed(self.seed)
@@ -111,13 +111,14 @@ class Env(object):
 
         # Training
         self.train_loss, self.train_accuracy = [], []
+        self.test_loss, self.test_accuracy = [], []
         self.acc_before = 0
         self.val_acc_list, self.net_list = [], []
         self.cv_loss, self.cv_acc = [], []
         self.print_every = 1
         val_loss_pre, counter = 0, 0
 
-        return self.state
+        return self.bid
 
     def individual_train(self, idx):
         local_ep = self.local_ep_list[idx]
@@ -147,10 +148,7 @@ class Env(object):
 
         action = 5 * action
         action = action.astype(int)
-
-        if ((action==[0,0,0,0,0]).all()):
-            action = [0,0,0,1,0]
-        print("Action", action)
+        print("Current Action:",action)
 
         self.local_ep_list = action
 
@@ -216,6 +214,7 @@ class Env(object):
         delta_acc = np.mean(np.array(self.train_accuracy)) - self.acc_before
         # todo  np.mean(np.array(self.train_accuracy))   self.train_accuracy[-1]
         self.acc_before = np.mean(np.array(self.train_accuracy))
+
         # todo  np.mean(np.array(self.train_accuracy))   self.train_accuracy[-1]
 
 
@@ -228,8 +227,14 @@ class Env(object):
 
 
         # TODO    test accuracy
-        # test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
-        # delta_acc = test_acc - self.test_acc_before # acc increment for reward
+        test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
+        self.test_accuracy.append(test_acc)
+        self.test_loss.append(test_loss)
+
+
+
+
+        # delta_acc = test_acc - self.test_acc_before  # acc increment for reward
         # self.test_acc_before = test_acc
         #
         # print(f' \nAvg Training Stats after {self.index + 1} global rounds:')
@@ -247,7 +252,7 @@ class Env(object):
         time_global = np.max(time_cmp)
         print("Global Time:", time_global)
 
-        payment = np.dot(action, self.state)
+        payment = np.dot(action, self.bid)
         print("Payment:", payment)
 
         print("Accuracy:", self.train_accuracy[-1], "Accuracy increment:", delta_acc)
@@ -259,29 +264,29 @@ class Env(object):
 
         # todo state transition here
 
-        for i in range(self.state.size):
+        for i in range(self.bid.size):
             if action[i] == 0:
                 # user will decrease its price to join next round if not join the training in this round
-                self.state_[i] = 0.8 * self.state[i]
-                if self.state_[i] < self.state_min[i]:
-                    self.state_[i] = self.state_min[i]
+                self.bid_[i] = 0.8 * self.bid[i]
+                if self.bid_[i] < self.bid_min[i]:
+                    self.bid_[i] = self.bid_min[i]
             else:
-                if self.state[i] * action[i] >= self.history_avg_price[i]:
+                if self.bid[i] * action[i] >= self.history_avg_price[i]:
                     # if user's current revenue >= history revenue, it wants to increase price to get more
-                    self.state_[i] = 1.05 * self.state[i]
-                    if self.state_[i] < self.state_min[i]:
-                        self.state_[i] = self.state_min[i]
-                    self.history_avg_price[i] = (self.history_avg_price[i]+self.state[i] * action[i]) / 2
+                    self.bid_[i] = 1.05 * self.bid[i]
+                    if self.bid_[i] < self.bid_min[i]:
+                        self.bid_[i] = self.bid_min[i]
+                    self.history_avg_price[i] = (self.history_avg_price[i]+self.bid[i] * action[i]) / 2
                 else:
                     # if user's current revenue < history revenue, it wants to increase price to get more
-                    self.state_[i] = 0.95 * self.state[i]
-                    if self.state_[i] < self.state_min[i]:
-                        self.state_[i] = self.state_min[i]
-                    self.history_avg_price[i] = (self.history_avg_price[i] + self.state[i] * action[i]) / 2
+                    self.bid_[i] = 0.95 * self.bid[i]
+                    if self.bid_[i] < self.bid_min[i]:
+                        self.bid_[i] = self.bid_min[i]
+                    self.history_avg_price[i] = (self.history_avg_price[i] + self.bid[i] * action[i]) / 2
 
-        self.state = self.state_
+        self.bid = self.bid_
 
-        return reward, self.state, delta_acc, payment, time_global
+        return reward, self.bid, delta_acc, payment, time_global, action, self.train_accuracy[-1], self.train_loss[-1], self.test_accuracy[-1], self.test_loss[-1], np.mean(np.array(self.train_accuracy))
 
 # TODO  The above is Environment
 
@@ -293,9 +298,9 @@ if __name__ == '__main__':
 
     configs = Configs()
     env = Env(configs)
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, True, 3)
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, True, 1)
 
-    csvFile1 = open("recording-PPO-inference-" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
+    csvFile1 = open("recording-PPO-inference-" + "Client_" + str(configs.user_num) + "new.csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
 
     accuracylist = []
@@ -307,8 +312,8 @@ if __name__ == '__main__':
     statelist = []
 
 
-    cur_state = env.reset()
-    observation = cur_state
+    cur_bid = env.reset()
+    cur_state = np.append(cur_bid, 0)
 
     sum_accuracy = 0
     sum_payment = 0
@@ -317,23 +322,30 @@ if __name__ == '__main__':
 
     for rounds in range(configs.infer_round):
         recording = []
-        action = ppo.choose_action(observation, configs.dec)
+        recording.append(cur_state)
+        print("Current State:", cur_state)
+
+        action = ppo.choose_action(cur_state, configs.dec)
+        while (np.floor(5 * action) == [0., 0., 0., 0., 0.]).all():
+            action = ppo.choose_action(cur_state, configs.dec)
         # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         # print(action)
         # while action == np.array([0,0,0,0,0]):
         #     action = ppo.choose_action(observation, configs.dec)
-        reward, next_state, delta_accuracy, pay, round_time = env.step(action) #todo reward here is scaled, need to modify
-
-        action = 5 * action
-        action = action.astype(int)
+        reward, next_bid, delta_accuracy, pay, round_time, int_action, \
+        train_acc, train_loss, test_acc, test_loss = env.step(action)  #todo reward here is scaled, need to modify
 
         sum_accuracy += delta_accuracy
         sum_payment += pay
         sum_round_time += round_time
         sum_reward += reward
 
-        cur_state = next_state
-        observation = cur_state
+        next_state = np.append(next_bid, rounds+1)
+
+        recording.append(int_action)
+        recording.append(next_state)
+
+        cur_state =next_state
 
         rewardlist.append(sum_reward*10)
         statelist.append(next_state)
@@ -348,6 +360,12 @@ if __name__ == '__main__':
         recording.append(sum_accuracy)
         recording.append(sum_payment)
         recording.append(sum_round_time)
+        recording.append(train_acc)
+        recording.append(train_loss)
+        recording.append(test_acc)
+        recording.append(test_loss)
+        recording.append(train_acc_mean)
+
         writer1.writerow(recording)
 
     print("accumulated reward:", sum_reward * 10)
