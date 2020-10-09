@@ -13,7 +13,7 @@ class Configs(object):
 
         ## TODO For FL training
         self.data = 'mnist'
-        self.rounds = 2    #todo change update batch
+        self.rounds = 20    #todo change update batch
         self.frac = 1
         self.user_num = 5
         self.FL_LR = 0.005
@@ -44,10 +44,10 @@ class Configs(object):
 
         ## TODO For RL training
 
-        self.EP_MAX = 2000
+        self.EP_MAX = 20
         self.S_DIM = 6  # TODO add history later
         self.A_DIM = 5
-        self.BATCH = 2
+        self.BATCH = 20  # TODO change round
         self.A_UPDATE_STEPS = 5
         self.C_UPDATE_STEPS = 5
         self.HAVE_TRAIN = False

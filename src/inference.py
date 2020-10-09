@@ -286,8 +286,7 @@ class Env(object):
 
         self.bid = self.bid_
 
-        return reward, self.bid, delta_acc, payment, time_global, action, self.train_accuracy[-1], self.train_loss[-1], self.test_accuracy[-1], self.test_loss[-1], np.mean(np.array(self.train_accuracy))
-
+        return reward, self.bid, delta_acc, payment, time_global, action, self.train_accuracy[-1], self.train_loss[-1], self.test_accuracy[-1], self.test_loss[-1]
 # TODO  The above is Environment
 
 
@@ -332,8 +331,7 @@ if __name__ == '__main__':
         # print(action)
         # while action == np.array([0,0,0,0,0]):
         #     action = ppo.choose_action(observation, configs.dec)
-        reward, next_bid, delta_accuracy, pay, round_time, int_action, \
-        train_acc, train_loss, test_acc, test_loss = env.step(action)  #todo reward here is scaled, need to modify
+        reward, next_bid, delta_accuracy, pay, round_time, int_action, train_acc, train_loss, test_acc, test_loss = env.step(action)  #todo reward here is scaled, need to modify
 
         sum_accuracy += delta_accuracy
         sum_payment += pay
@@ -364,7 +362,6 @@ if __name__ == '__main__':
         recording.append(train_loss)
         recording.append(test_acc)
         recording.append(test_loss)
-        recording.append(train_acc_mean)
 
         writer1.writerow(recording)
 

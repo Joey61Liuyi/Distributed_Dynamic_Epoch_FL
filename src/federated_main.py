@@ -115,6 +115,7 @@ class Env(object):
 
         # Training
         self.train_loss, self.train_accuracy = [], []
+        self.test_loss, self.test_accuracy = [], []
         self.acc_before = 0
         self.val_acc_list, self.net_list = [], []
         self.cv_loss, self.cv_acc = [], []
@@ -154,8 +155,6 @@ class Env(object):
         action = 5 * action
         action = action.astype(int)
 
-        if ((action==[0,0,0,0,0]).all()):
-            action = [0,0,1,0,0]
         print("Action", action)
 
         self.local_ep_list = action
@@ -210,13 +209,6 @@ class Env(object):
 
         self.train_accuracy.append(sum(list_acc) / len(list_acc))
 
-        self.loss_list.append(np.mean(np.array(self.train_loss)))
-        self.acc_list.append(np.mean(np.array(self.train_accuracy)))
-
-        info = pd.DataFrame([self.acc_list, self.loss_list])
-        info = pd.DataFrame(info.values.T, columns=['acc', 'loss'])
-        info.to_csv(str(self.args.num_users) + 'user_' + self.args.dataset + '_' + str(self.args.lr) + '.csv')
-
         # print global training loss after every 'i' rounds
 
         delta_acc = np.mean(np.array(self.train_accuracy)) - self.acc_before
@@ -229,8 +221,13 @@ class Env(object):
             print('Train Accuracy: {:.2f}% \n'.format(100 * np.mean(np.array(self.train_accuracy))))
 
 
-
         # TODO    test accuracy
+
+        test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
+        self.test_accuracy.append(test_acc)
+        self.test_loss.append(test_loss)
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(test_acc)
         # test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
         # delta_acc = test_acc - self.test_acc_before # acc increment for reward
         # self.test_acc_before = test_acc
@@ -284,7 +281,7 @@ class Env(object):
 
         self.bid = self.bid_
 
-        return reward, self.bid, delta_acc, payment, time_global
+        return reward, self.bid, delta_acc, payment, time_global, action
 
 # TODO  The above is Environment
 
@@ -293,11 +290,11 @@ class Env(object):
 # TODO  The below is main DRL training progress
 # todo check the random seed in Env reset !!!!!!!!!!!!!!!!!! line 53-57
 if __name__ == '__main__':
-
+    print("Hello world")
     configs = Configs()
     env = Env(configs)
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 0)
-    #todo num=0 earlest; num=1 on CPU; num=2 on GPU; num=3 round=10
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 1)
+    #todo num=0 2 rounds on GPU; num=1 10 rounds;
 
     csvFile1 = open("recording2-Dynamic-local-epoch_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
@@ -313,8 +310,9 @@ if __name__ == '__main__':
 
     for EP in range(configs.EP_MAX):
         cur_bid = env.reset()
-        cur_state = np.append(cur_bid, 0) #TODO  add index into state
+        cur_state = np.append(cur_bid, 0)  #TODO  add index into state
         recording = []
+        recording.append(cur_state)
 
         #  learning rate change for trade-off between exploit and explore
         if EP % 20 == 0:
@@ -338,12 +336,17 @@ if __name__ == '__main__':
             # local_ep_list = local_ep_list.split(',')
             # local_ep_list = [int(i) for i in local_ep_list]
             # action = local_ep_list
+            print("Current State:", cur_state)
+
             action = ppo.choose_action(cur_state, configs.dec)
+            while (np.floor(5*action) == [0., 0., 0., 0., 0.]).all():
+                action = ppo.choose_action(cur_state, configs.dec)
+
             # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             # print(action)
             # while action == np.array([0,0,0,0,0]):
             #     action = ppo.choose_action(observation, configs.dec)
-            reward, next_bid, delta_accuracy, pay, round_time = env.step(action)
+            reward, next_bid, delta_accuracy, pay, round_time, int_action = env.step(action)
 
             sum_accuracy += delta_accuracy
             sum_payment += pay
@@ -353,12 +356,11 @@ if __name__ == '__main__':
             buffer_a.append(action.copy())
             buffer_s.append(cur_state.reshape(-1, configs.S_DIM).copy())
             buffer_r.append(reward)
-            recording.append(next_bid)
 
             next_state = np.append(next_bid, t+1)
-            print("Current State:", cur_state)
+            recording.append(int_action)
+            recording.append(next_state)
             print("Next State:", next_state)
-            cur_state = next_state
 
             #  ppo.update()
             if (t+1) % configs.BATCH == 0:
@@ -377,6 +379,9 @@ if __name__ == '__main__':
                     closs, aloss = ppo.update(np.vstack(buffer_s), np.vstack(buffer_a), discounted_r, configs.dec, configs.A_LR, configs.C_LR, EP+1)
                     sum_closs += closs
                     sum_aloss += aloss
+
+            #TODO state transition
+            cur_state = next_state
 
         if (EP+1) % 1 == 0:
             print("------------------------------------------------------------------------")
@@ -498,7 +503,8 @@ if __name__ == '__main__':
 #
 #     for EP in range(configs.EP_MAX):
 #
-#         cur_state = env.reset()
+#         cur_bid = env.reset()
+#         cur_state = np.append(cur_bid, 0)
 #
 #         sum_accuracy = 0
 #         sum_payment = 0
@@ -520,11 +526,14 @@ if __name__ == '__main__':
 #
 #         for t in range(configs.rounds):
 #             action = actionset[t]
-#             reward, next_state, delta_accuracy, pay, round_time = env.step(action)
+#             reward, next_bid, delta_accuracy, pay, round_time = env.step(action)
+
 #             sum_accuracy += delta_accuracy
 #             sum_payment += pay
 #             sum_round_time += round_time
 #             sum_reward += reward
+
+#             next_state = np.append(next_bid, t+1)
 #             cur_state = next_state
 #
 #         # if action-set is unchanged (80% greedy), then remove it and re-add it with its new reward in this round
