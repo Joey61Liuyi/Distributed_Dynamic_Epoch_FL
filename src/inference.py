@@ -148,7 +148,7 @@ class Env(object):
 
         action = 5 * action
         action = action.astype(int)
-        print("Current Action:",action)
+        print("Current Action:", action)
 
         self.local_ep_list = action
 
@@ -324,13 +324,13 @@ if __name__ == '__main__':
         recording.append(cur_state)
         print("Current State:", cur_state)
 
-        action = ppo.choose_action(cur_state, configs.dec)
-        while (np.floor(5 * action) == [0., 0., 0., 0., 0.]).all():
-            action = ppo.choose_action(cur_state, configs.dec)
-        # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        # print(action)
-        # while action == np.array([0,0,0,0,0]):
-        #     action = ppo.choose_action(observation, configs.dec)
+        # action = ppo.choose_action(cur_state, configs.dec)
+        # while (np.floor(5 * action) == [0., 0., 0., 0., 0.]).all():
+        #     action = ppo.choose_action(cur_state, configs.dec)
+
+        action =np.array([0.3, 0.3, 0.3, 0.3, 0.3])
+
+
         reward, next_bid, delta_accuracy, pay, round_time, int_action, train_acc, train_loss, test_acc, test_loss = env.step(action)  #todo reward here is scaled, need to modify
 
         sum_accuracy += delta_accuracy
@@ -353,8 +353,6 @@ if __name__ == '__main__':
         round_timelist.append(sum_round_time)
 
         recording.append(sum_reward * 10)
-        recording.append(next_state)
-        recording.append(action)
         recording.append(sum_accuracy)
         recording.append(sum_payment)
         recording.append(sum_round_time)

@@ -211,8 +211,8 @@ class Env(object):
 
         # print global training loss after every 'i' rounds
 
-        delta_acc = np.mean(np.array(self.train_accuracy)) - self.acc_before
-        self.acc_before = np.mean(np.array(self.train_accuracy))
+        # delta_acc = np.mean(np.array(self.train_accuracy)) - self.acc_before
+        # self.acc_before = np.mean(np.array(self.train_accuracy))
 
 
         if (self.index + 1) % self.print_every == 0:
@@ -226,8 +226,11 @@ class Env(object):
         test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
         self.test_accuracy.append(test_acc)
         self.test_loss.append(test_loss)
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print(test_acc)
+
+        delta_acc = self.test_accuracy[-1] - self.acc_before
+        self.acc_before = self.test_accuracy[-1]
+
+
         # test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
         # delta_acc = test_acc - self.test_acc_before # acc increment for reward
         # self.test_acc_before = test_acc
@@ -250,9 +253,10 @@ class Env(object):
         payment = np.dot(action, self.bid)
         print("Payment:", payment)
 
-        print("Accuracy:", self.train_accuracy[-1], "Accuracy increment:", delta_acc)
+        print("Accuracy:", self.test_accuracy[-1], "Accuracy increment:", delta_acc)
 
-        reward = (self.lamda * delta_acc - payment - time_global) / 10    #TODO reward percentage need to be change
+        # reward = (self.lamda * delta_acc - payment - time_global) / 10    #TODO reward percentage need to be change
+        reward = self.lamda * delta_acc / 10  #TODO test for the existance of data importance
         print("Scaling Reward:", reward)
         print("------------------------------------------------------------------------")
 
@@ -290,13 +294,13 @@ class Env(object):
 # TODO  The below is main DRL training progress
 # todo check the random seed in Env reset !!!!!!!!!!!!!!!!!! line 53-57
 if __name__ == '__main__':
-    print("Hello world")
+
     configs = Configs()
     env = Env(configs)
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 1)
-    #todo num=0 2 rounds on GPU; num=1 10 rounds;
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 3)
+    #todo num=0 2rounds on GPU; num=1 10rounds; num=2 20rounds of TestAcc; num=3 10Rounds test for data importance
 
-    csvFile1 = open("recording2-Dynamic-local-epoch_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
+    csvFile1 = open("Test for existence of data importance" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
 
     accuracies = []
