@@ -13,7 +13,7 @@ class Configs(object):
 
         ## TODO For FL training
         self.data = 'mnist'
-        self.rounds = 10    #todo change update batch
+        self.rounds = 5    #todo change update batch
         self.frac = 1
         self.user_num = 5
         self.FL_LR = 0.005
@@ -25,7 +25,7 @@ class Configs(object):
 
         # TODO for Fderated Env
 
-        self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
+        self.data_size = np.array([12000, 10000, 2000, 14000, 22000])
 
         if self.data == 'cifar':
             theta_num = 62006
@@ -47,7 +47,7 @@ class Configs(object):
         self.EP_MAX = 2000
         self.S_DIM = 6  # TODO add history later
         self.A_DIM = 5
-        self.BATCH = 10  # TODO change round
+        self.BATCH = self.rounds  # TODO change round
         self.A_UPDATE_STEPS = 5
         self.C_UPDATE_STEPS = 5
         self.HAVE_TRAIN = False

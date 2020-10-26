@@ -244,10 +244,14 @@ class Env(object):
 
         # TODO     Env for Computing Time & State Transition & Reward Design
 
-        time_cmp = (action * self.D * self.C) / self.frequency
-        print("Computing Time:", time_cmp)
+        # time_cmp = (action * self.D * self.C) / self.frequency
+        # print("Computing Time:", time_cmp)
 
-        time_global = np.max(time_cmp)
+        time_cmp = action*3 # todo accumulative time for resource bound
+
+        # time_global = np.max(time_cmp)
+
+        time_global = np.sum(time_cmp)
         print("Global Time:", time_global)
 
         payment = np.dot(action, self.bid)
@@ -255,8 +259,8 @@ class Env(object):
 
         print("Accuracy:", self.test_accuracy[-1], "Accuracy increment:", delta_acc)
 
-        # reward = (self.lamda * delta_acc - payment - time_global) / 10    #TODO reward percentage need to be change
-        reward = self.lamda * delta_acc / 10  #TODO test for the existance of data importance
+        # reward = (self.lamda * delta_acc - payment - time_global) / 10   #TODO reward percentage need to be change
+        reward = (self.lamda * delta_acc - time_global)/10 #TODO test for the existance of data importance
         print("Scaling Reward:", reward)
         print("------------------------------------------------------------------------")
 
@@ -351,6 +355,8 @@ if __name__ == '__main__':
             # while action == np.array([0,0,0,0,0]):
             #     action = ppo.choose_action(observation, configs.dec)
             reward, next_bid, delta_accuracy, pay, round_time, int_action = env.step(action)
+
+            next_bid = cur_bid # todo Fix biding, tobe deleted after trial experiment
 
             sum_accuracy += delta_accuracy
             sum_payment += pay
