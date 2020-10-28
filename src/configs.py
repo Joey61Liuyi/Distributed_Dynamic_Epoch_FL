@@ -25,7 +25,7 @@ class Configs(object):
 
         # TODO for Fderated Env
 
-        self.data_size = np.array([12000, 10000, 2000, 14000, 22000])
+        self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
 
         if self.data == 'cifar':
             theta_num = 62006
