@@ -110,23 +110,78 @@ def data_partition(training_data, number_of_clients, non_iid_level):
 
     return data_partition_profile
 
+def data_partition_tril(training_data, number_of_clients):
 
+    idxs = np.arange(len(training_data))
+    labels = training_data.train_labels.numpy()
+
+    # sort labels
+    idxs_labels = np.vstack((idxs, labels))
+
+    idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
+    labels = np.unique(labels, axis=0)
+    idxs = idxs_labels[0, :]
+    data_dict = data_organize(idxs_labels, labels)
+    distribution_amount = {}
+    for one in data_dict:
+        print(len(data_dict[one]), one)
+        distribution_amount[one]=uniform(len(data_dict[one]), 4)
+
+
+
+    # if non_iid_level == 0:
+    #     num_items = int(len(training_data)/number_of_clients)
+    #     data_partition_profile, all_idxs = {}, [i for i in range(len(training_data))]
+    #     for i in range(number_of_clients):
+    #         data_partition_profile[i] = set(np.random.choice(all_idxs, num_items, replace=False))
+    #         all_idxs = list(set(all_idxs) - data_partition_profile[i])
+
+    # else:
+
+
+    assigned_labels = [3,6]
+    average_labels = [0,1,2,4,5,7,8,9]
+
+
+    data_partition_profile, all_idxs = {}, [i for i in range(len(training_data))]
+
+    for i in range(number_of_clients):
+        if i == 0:
+            data_partition_profile[i] = set(data_dict[3]).union(set(data_dict[6]))
+            data_dict[3] = []
+            data_dict[6] = []
+            pass
+        else:
+            tep_set = set()
+            for one in average_labels:
+                pass
+                samples = set(np.random.choice(data_dict[one], distribution_amount[one][i-1], replace=False))
+                data_dict[one] = list(set(data_dict[one])-samples)
+                tep_set = tep_set.union(samples)
+                print(distribution_amount[one][i-1])
+            print(tep_set)
+            data_partition_profile[i] = tep_set
+            all_idxs = list(set(all_idxs) - data_partition_profile[i])
+
+    return data_partition_profile
 if __name__ == '__main__':
-    # dataset_train = datasets.MNIST('./data/mnist/', train=True, download=True,
-    #                                transform=transforms.Compose([
-    #                                    transforms.ToTensor(),
-    #                                    transforms.Normalize((0.1307,),
-    #                                                         (0.3081,))
-    #                                ]))
-    # num = 5
-    # d = data_partition(dataset_train, num, 0.5)
-    # print(d)
-    random.seed(0)
-    num_shards = 1200
-    num_users = 50
-    min_shards = round(num_shards/num_users*1/5)
-    max_shards = round(num_shards/num_users*2)
-
-    a = randomSplit(num_shards,num_users, min_shards,max_shards)
-    print(np.sum(np.array(a)))
+    dataset_train = datasets.MNIST('./data/mnist/', train=True, download=True,
+                                   transform=transforms.Compose([
+                                       transforms.ToTensor(),
+                                       transforms.Normalize((0.1307,),
+                                                            (0.3081,))
+                                   ]))
+    num = 5
+    d = data_partition_tril(dataset_train, num)
+    print(d)
+    for i in d:
+        print(len(d[i]))
+    # random.seed(0)
+    # num_shards = 1200
+    # num_users = 50
+    # min_shards = round(num_shards/num_users*1/5)
+    # max_shards = round(num_shards/num_users*2)
+    #
+    # a = randomSplit(num_shards,num_users, min_shards,max_shards)
+    # print(np.sum(np.array(a)))
 
