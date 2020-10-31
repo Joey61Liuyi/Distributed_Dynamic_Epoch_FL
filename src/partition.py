@@ -110,7 +110,7 @@ def data_partition(training_data, number_of_clients, non_iid_level):
 
     return data_partition_profile
 
-def data_partition_tril(training_data, number_of_clients):
+def data_partition_trial(training_data, number_of_clients):
 
     idxs = np.arange(len(training_data))
     labels = training_data.train_labels.numpy()
@@ -163,6 +163,9 @@ def data_partition_tril(training_data, number_of_clients):
             data_partition_profile[i] = tep_set
             all_idxs = list(set(all_idxs) - data_partition_profile[i])
 
+
+    for one in data_partition_profile:
+        data_partition_profile[one] = np.array(list(data_partition_profile[one]))
     return data_partition_profile
 if __name__ == '__main__':
     dataset_train = datasets.MNIST('./data/mnist/', train=True, download=True,
@@ -172,7 +175,7 @@ if __name__ == '__main__':
                                                             (0.3081,))
                                    ]))
     num = 5
-    d = data_partition_tril(dataset_train, num)
+    d = data_partition_trial(dataset_train, num)
     print(d)
     for i in d:
         print(len(d[i]))
