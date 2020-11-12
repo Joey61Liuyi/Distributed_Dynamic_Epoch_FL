@@ -164,15 +164,9 @@ class Configs(object):
 #         self.reducer_pretrain = reducer_pretrain_dict[self.user_num]
 #
 #
-# if __name__ == '__main__':
-#
-#     np.random.seed(2)
-#     configs = Configs('mnist', 50)
-#
-#     print(configs.delta_max)
-#     print(configs.D)
-#     print(configs.amplifier_hrl)
-#     print(configs.amplifier_baseline)
-#     print(configs.communication_time)
-#     print(configs.acc_increase_list)
-#     # print(configs.D)
+if __name__ == '__main__':
+
+    np.random.seed(2)
+    configs = Configs()
+    E = configs.frequency*configs.frequency*configs.C*configs.D*configs.alpha
+    print(np.sum(2*E))

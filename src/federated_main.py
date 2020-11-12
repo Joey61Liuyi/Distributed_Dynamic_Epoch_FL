@@ -140,6 +140,10 @@ class Env(object):
 
     def step(self, action):
 
+        E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha
+        E = E*action
+        E = np.sum(E)
+
         self.local_weights, self.local_losses = [], []
         print(f'\n | Global Training Round : {self.index + 1} |\n')
 
@@ -156,6 +160,7 @@ class Env(object):
         action = action.astype(int)
 
         print("Action", action)
+        print(type(action))
 
         self.local_ep_list = action
 
@@ -244,15 +249,15 @@ class Env(object):
 
         # TODO     Env for Computing Time & State Transition & Reward Design
 
-        # time_cmp = (action * self.D * self.C) / self.frequency
-        # print("Computing Time:", time_cmp)
+        time_cmp = (action * self.D * self.C) / self.frequency
+        print("Computing Time:", time_cmp)
+        time_global = np.max(time_cmp)
 
-        time_cmp = action*3 # todo accumulative time for resource bound
-
-        # time_global = np.max(time_cmp)
-
-        time_global = np.sum(time_cmp)
+        demand = action * 3  # social demand definition
+        demand_global = np.sum(demand)
         print("Global Time:", time_global)
+        print("Energy cost:", E)
+
 
         payment = np.dot(action, self.bid)
         print("Payment:", payment)
@@ -260,7 +265,7 @@ class Env(object):
         print("Accuracy:", self.test_accuracy[-1], "Accuracy increment:", delta_acc)
 
         # reward = (self.lamda * delta_acc - payment - time_global) / 10   #TODO reward percentage need to be change
-        reward = (self.lamda * delta_acc - time_global)/10 #TODO test for the existance of data importance
+        reward = (self.lamda * delta_acc - demand_global/4 - E/4 - time_global/2)/10 #TODO test for the existance of data importance
         print("Scaling Reward:", reward)
         print("------------------------------------------------------------------------")
 
@@ -370,6 +375,7 @@ if __name__ == '__main__':
             next_state = np.append(next_bid, t+1)
             recording.append(int_action)
             recording.append(next_state)
+            recording.append(reward)
             print("Next State:", next_state)
 
             #  ppo.update()

@@ -162,7 +162,7 @@ def mnist_noniid_unequal(dataset, num_users):
                 dict_users[k] = np.concatenate(
                     (dict_users[k], idxs[rand*num_imgs:(rand+1)*num_imgs]),
                     axis=0)
-    dict_users = data_partition_trial(dataset, num_users)
+    # dict_users = data_partition_trial(dataset, num_users)
     return dict_users
 
 
