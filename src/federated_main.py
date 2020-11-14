@@ -140,9 +140,6 @@ class Env(object):
 
     def step(self, action):
 
-        E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha
-        E = E*action
-        E = np.sum(E)
 
         self.local_weights, self.local_losses = [], []
         print(f'\n | Global Training Round : {self.index + 1} |\n')
@@ -158,6 +155,10 @@ class Env(object):
 
         action = 5 * action
         action = action.astype(int)
+
+        E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha
+        E = E*action
+        E = np.sum(E)
 
         print("Action", action)
         print(type(action))
@@ -294,7 +295,7 @@ class Env(object):
 
         self.bid = self.bid_
 
-        return reward, self.bid, delta_acc, payment, time_global, action
+        return reward, self.bid, delta_acc, payment, time_global, action, E
 
 # TODO  The above is Environment
 
@@ -343,6 +344,7 @@ if __name__ == '__main__':
         sum_action = 0
         sum_closs = 0
         sum_aloss = 0
+        sum_energy = 0
 
         for t in range(configs.rounds):
             # local_ep_list = input('please input the local epoch list:')
@@ -359,7 +361,7 @@ if __name__ == '__main__':
             # print(action)
             # while action == np.array([0,0,0,0,0]):
             #     action = ppo.choose_action(observation, configs.dec)
-            reward, next_bid, delta_accuracy, pay, round_time, int_action = env.step(action)
+            reward, next_bid, delta_accuracy, pay, round_time, int_action, energy = env.step(action)
 
             next_bid = cur_bid # todo Fix biding, tobe deleted after trial experiment
 
@@ -368,14 +370,16 @@ if __name__ == '__main__':
             sum_round_time += round_time
             sum_reward += reward
             sum_action += action
+            sum_energy += energy
             buffer_a.append(action.copy())
-            buffer_s.append(cur_state.reshape(-1, configs.S_DIM).copy())
             buffer_r.append(reward)
+            buffer_s.append(cur_state.reshape(-1, configs.S_DIM).copy())
 
             next_state = np.append(next_bid, t+1)
             recording.append(int_action)
             recording.append(next_state)
             recording.append(reward)
+
             print("Next State:", next_state)
 
             #  ppo.update()
@@ -418,6 +422,7 @@ if __name__ == '__main__':
             recording.append(sum_accuracy)
             recording.append(sum_payment)
             recording.append(sum_round_time)
+            recording.append(sum_energy)
             writer1.writerow(recording)
 
             print("accumulated reward:", sum_reward * 10)
