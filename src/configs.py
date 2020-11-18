@@ -18,15 +18,14 @@ class Configs(object):
         self.user_num = 5
         self.FL_LR = 0.005
         self.model = 'cnn'
-        self.iid = 1
+        self.iid = 0
         self.unequal = 1
         self.gpu = 1   # 0 = CPU; 1 = GPU
 
 
         # TODO for Fderated Env
 
-        # self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
-        self.data_size = np.array([12000, 12000, 12000, 12000, 12000])
+        self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
 
         if self.data == 'cifar':
             theta_num = 62006
@@ -36,7 +35,7 @@ class Configs(object):
         self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
 
         self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
-        self.lamda = 500    # todo changed for 10 rounds
+        self.lamda = 4    # todo changed for 10 rounds
         self.C = 20
         self.alpha = 0.1
         self.local_epoch_range = 10
@@ -165,15 +164,11 @@ class Configs(object):
 #         self.reducer_pretrain = reducer_pretrain_dict[self.user_num]
 #
 #
-# if __name__ == '__main__':
-#
-#     np.random.seed(2)
-#     configs = Configs('mnist', 50)
-#
-#     print(configs.delta_max)
-#     print(configs.D)
-#     print(configs.amplifier_hrl)
-#     print(configs.amplifier_baseline)
-#     print(configs.communication_time)
-#     print(configs.acc_increase_list)
-#     # print(configs.D)
+if __name__ == '__main__':
+
+    np.random.seed(2)
+    configs = Configs()
+    E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha
+    data = 0.001 * configs.data_size
+    print(E)
+    print(data)

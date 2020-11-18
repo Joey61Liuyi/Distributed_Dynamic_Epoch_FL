@@ -46,9 +46,12 @@ class Env(object):
 
     def reset(self):
         self.index = 0
-        self.bid = 0.0001 * self.data_size + self.frequency  #TODO
+        self.data_value = 0.001 * self.data_size
+        self.unit_E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha  #TODO
+        self.bid = self.data_value + self.unit_E
         self.bid_ = np.zeros(configs.user_num)
-        self.bid_min = 0.7 * self.bid
+        self.action_history = np.array([])
+        # self.bid_min = 0.7 * self.bid
 
         # todo annotate these random seed if run greedy, save them when run DRL
         np.random.seed(self.seed)
@@ -117,6 +120,7 @@ class Env(object):
         self.train_loss, self.train_accuracy = [], []
         self.test_loss, self.test_accuracy = [], []
         self.acc_before = 0
+        self.loss_before = 300
         self.val_acc_list, self.net_list = [], []
         self.cv_loss, self.cv_acc = [], []
         self.print_every = 1
@@ -140,6 +144,7 @@ class Env(object):
 
     def step(self, action):
 
+
         self.local_weights, self.local_losses = [], []
         print(f'\n | Global Training Round : {self.index + 1} |\n')
 
@@ -155,8 +160,17 @@ class Env(object):
         action = 5 * action
         action = action.astype(int)
 
-        print("Action", action)
+        #TODO FedAvg here
+        # tep = 2
+        # action = np.array([tep, tep, tep, tep, tep])
 
+        self.action_history = np.append(self.action_history, action)
+
+        # tep = 1
+        # action = np.array([tep,tep,tep,tep,tep])
+
+        print("Action", action)
+        print(type(action))
         self.local_ep_list = action
 
 
@@ -230,6 +244,9 @@ class Env(object):
         delta_acc = self.test_accuracy[-1] - self.acc_before
         self.acc_before = self.test_accuracy[-1]
 
+        delta_loss = self.loss_before - self.test_loss[-1]
+        self.loss_before = self.test_loss[-1]
+        print("Loss:", self.test_loss[-1], "Loss increment:", delta_loss)
 
         # test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
         # delta_acc = test_acc - self.test_acc_before # acc increment for reward
@@ -244,59 +261,60 @@ class Env(object):
 
         # TODO     Env for Computing Time & State Transition & Reward Design
 
-        # time_cmp = (action * self.D * self.C) / self.frequency
-        # print("Computing Time:", time_cmp)
+        time_cmp = (action * self.D * self.C) / self.frequency
+        print("Computing Time:", time_cmp)
 
-        time_cmp = action*3 # todo accumulative time for resource bound
-
-        # time_global = np.max(time_cmp)
-
-        time_global = np.sum(time_cmp)
+        time_global = np.max(time_cmp)
         print("Global Time:", time_global)
 
-        payment = np.dot(action, self.bid)
-        print("Payment:", payment)
+        # E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha
+        # E = E * action
+        # E = np.sum(E)
+
+        data_value_sum = np.dot(action, self.data_value)
+        print("Sum Data Value:", data_value_sum)
+
+        E = np.dot(action, self.unit_E)
+        print("Energy:", E)
+
+        cost = data_value_sum + E
+        print("cost:", cost)
 
         print("Accuracy:", self.test_accuracy[-1], "Accuracy increment:", delta_acc)
 
         # reward = (self.lamda * delta_acc - payment - time_global) / 10   #TODO reward percentage need to be change
-        reward = (self.lamda * delta_acc - time_global)/10 #TODO test for the existance of data importance
+        reward = (self.lamda * delta_loss - cost - time_global)/10 #TODO test for the existance of data importance
         print("Scaling Reward:", reward)
         print("------------------------------------------------------------------------")
 
         # todo state transition here
 
-        for i in range(self.bid.size):
-            if action[i] == 0:
-                # user will decrease its price to join next round if not join the training in this round
-                self.bid_[i] = 0.8 * self.bid[i]
-                if self.bid_[i] < self.bid_min[i]:
-                    self.bid_[i] = self.bid_min[i]
-
-            else:
-                if self.bid[i] * action[i] >= self.history_avg_price[i]:
-                    # if user's current revenue >= history revenue, it wants to increase price to get more
-                    self.bid_[i] = 1.05 * self.bid[i]
-                    if self.bid_[i] < self.bid_min[i]:
-                        self.bid_[i] = self.bid_min[i]
-                    self.history_avg_price[i] = (self.history_avg_price[i] + self.bid[i] * action[i]) / 2
-                else:
-                    # if user's current revenue < history revenue, it wants to increase price to get more
-                    self.bid_[i] = 0.95 * self.bid[i]
-                    if self.bid_[i] < self.bid_min[i]:
-                        self.bid_[i] = self.bid_min[i]
-                    self.history_avg_price[i] = (self.history_avg_price[i] + self.bid[i] * action[i]) / 2
+        history_cut = self.action_history[-3:]
+        history_avg = np.mean(history_cut, axis=0)
+        sign_add = action > history_avg
+        sign_reduce = action < history_avg
+        self.data_value = self.data_value * sign_add * 0.1 - self.data_value * sign_reduce * 0.1 + self.data_value
+        self.bid_ = self.data_value + self.unit_E
+        #
+        # for i in range(self.bid.size):
+        #
+        #     if action[i] > history_avg[i]:
+        #         self.bid_[i] = 1.1 * self.bid[i]
+        #     elif action[i] < history_avg[i]:
+        #         self.bid_[i] = 0.9 * self.bid[i]
+        #     else:
+        #         self.bid_[i] = self.bid[i]
 
         self.bid = self.bid_
 
-        return reward, self.bid, delta_acc, payment, time_global, action
+        return reward, self.bid, delta_acc, cost, time_global, action, E
 
 # TODO  The above is Environment
 
 
-
-# TODO  The below is main DRL training progress
-# todo check the random seed in Env reset !!!!!!!!!!!!!!!!!! line 53-57
+#
+# # TODO  The below is main DRL training progress
+# # todo check the random seed in Env reset !!!!!!!!!!!!!!!!!! line 53-57
 if __name__ == '__main__':
 
     configs = Configs()
@@ -308,7 +326,7 @@ if __name__ == '__main__':
     writer1 = csv.writer(csvFile1)
 
     accuracies = []
-    payments = []
+    costs = []
     round_times = []
 
     rewards = []
@@ -332,12 +350,13 @@ if __name__ == '__main__':
         buffer_a = []
         buffer_r = []
         sum_accuracy = 0
-        sum_payment = 0
+        sum_cost = 0
         sum_round_time = 0
         sum_reward = 0
         sum_action = 0
         sum_closs = 0
         sum_aloss = 0
+        sum_energy = 0
 
         for t in range(configs.rounds):
             # local_ep_list = input('please input the local epoch list:')
@@ -354,22 +373,25 @@ if __name__ == '__main__':
             # print(action)
             # while action == np.array([0,0,0,0,0]):
             #     action = ppo.choose_action(observation, configs.dec)
-            reward, next_bid, delta_accuracy, pay, round_time, int_action = env.step(action)
+            reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
 
             next_bid = cur_bid # todo Fix biding, tobe deleted after trial experiment
 
             sum_accuracy += delta_accuracy
-            sum_payment += pay
+            sum_cost += cost
             sum_round_time += round_time
             sum_reward += reward
             sum_action += action
+            sum_energy += energy
             buffer_a.append(action.copy())
-            buffer_s.append(cur_state.reshape(-1, configs.S_DIM).copy())
             buffer_r.append(reward)
+            buffer_s.append(cur_state.reshape(-1, configs.S_DIM).copy())
 
             next_state = np.append(next_bid, t+1)
             recording.append(int_action)
+            recording.append(reward)
             recording.append(next_state)
+
             print("Next State:", next_state)
 
             #  ppo.update()
@@ -402,7 +424,7 @@ if __name__ == '__main__':
             closses.append(sum_closs / configs.rounds)
             alosses.append(sum_aloss / configs.rounds)
             accuracies.append(sum_accuracy)
-            payments.append(sum_payment)
+            costs.append(sum_cost)
             round_times.append(sum_round_time)
 
             recording.append(sum_reward * 10)
@@ -410,8 +432,9 @@ if __name__ == '__main__':
             recording.append(sum_closs / configs.rounds)
             recording.append(sum_aloss / configs.rounds)
             recording.append(sum_accuracy)
-            recording.append(sum_payment)
+            recording.append(sum_cost)
             recording.append(sum_round_time)
+            recording.append(sum_energy)
             writer1.writerow(recording)
 
             print("accumulated reward:", sum_reward * 10)
@@ -419,7 +442,7 @@ if __name__ == '__main__':
             print("average closs:", sum_closs / configs.rounds)
             print("average aloss:", sum_aloss / configs.rounds)
             print("total accuracy:", sum_accuracy)
-            print("total payment:", sum_payment)
+            print("total cost:", sum_cost)
             print("total round time:", sum_round_time)
 
     plt.plot(rewards)
@@ -446,8 +469,8 @@ if __name__ == '__main__':
     # plt.savefig("Rewards.png", dpi=200)
     plt.show()
 
-    plt.plot(payments)
-    plt.ylabel("payment")
+    plt.plot(costs)
+    plt.ylabel("cost")
     plt.xlabel("Episodes")
     # plt.savefig("Rewards.png", dpi=200)
     plt.show()
