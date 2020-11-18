@@ -35,7 +35,7 @@ class Configs(object):
         self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
 
         self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
-        self.lamda = 500    # todo changed for 10 rounds
+        self.lamda = 1000    # todo changed for 10 rounds
         self.C = 20
         self.alpha = 0.1
         self.local_epoch_range = 10
@@ -44,7 +44,7 @@ class Configs(object):
 
         ## TODO For RL training
 
-        self.EP_MAX = 2000
+        self.EP_MAX = 200
         self.S_DIM = 6  # TODO add history later
         self.A_DIM = 5
         self.BATCH = self.rounds  # TODO change round
@@ -168,5 +168,7 @@ if __name__ == '__main__':
 
     np.random.seed(2)
     configs = Configs()
-    E = configs.frequency*configs.frequency*configs.C*configs.D*configs.alpha
-    print(np.sum(2*E))
+    E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha
+    data = 0.001 * configs.data_size
+    print(E)
+    print(data)
