@@ -50,7 +50,7 @@ class Env(object):
         self.unit_E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha  #TODO
         self.bid = self.data_value + self.unit_E
         self.bid_ = np.zeros(configs.user_num)
-        self.action_history = np.array([])
+        self.action_history = []
         # self.bid_min = 0.7 * self.bid
 
         # todo annotate these random seed if run greedy, save them when run DRL
@@ -164,8 +164,9 @@ class Env(object):
         # tep = 2
         # action = np.array([tep, tep, tep, tep, tep])
 
-        self.action_history = np.append(self.action_history, action)
-
+        self.action_history = list(self.action_history)
+        self.action_history.append(action)
+        self.action_history = np.array(self.action_history)
         # tep = 1
         # action = np.array([tep,tep,tep,tep,tep])
 
@@ -231,8 +232,10 @@ class Env(object):
 
         if (self.index + 1) % self.print_every == 0:
             print(f' \nAvg Training Stats after {self.index+ 1} global rounds:')
-            print(f'Training Loss : {np.mean(np.array(self.train_loss))}')
-            print('Train Accuracy: {:.2f}% \n'.format(100 * np.mean(np.array(self.train_accuracy))))
+            # print(f'Training Loss : {np.mean(np.array(self.train_loss))}')
+            # print('Train Accuracy: {:.2f}% \n'.format(100 * np.mean(np.array(self.train_accuracy))))
+            print(f'Training Loss : {self.train_loss[-1]}')
+            print('Train Accuracy: {:.2f}% \n'.format(100 * self.train_accuracy[-1]))
 
 
         # TODO    test accuracy
@@ -247,6 +250,7 @@ class Env(object):
         delta_loss = self.loss_before - self.test_loss[-1]
         self.loss_before = self.test_loss[-1]
         print("Loss:", self.test_loss[-1], "Loss increment:", delta_loss)
+        print("Accuracy:", self.test_accuracy[-1], "Accuracy increment:", delta_acc)
 
         # test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
         # delta_acc = test_acc - self.test_acc_before # acc increment for reward
@@ -280,8 +284,6 @@ class Env(object):
         cost = data_value_sum + E
         print("cost:", cost)
 
-        print("Accuracy:", self.test_accuracy[-1], "Accuracy increment:", delta_acc)
-
         # reward = (self.lamda * delta_acc - payment - time_global) / 10   #TODO reward percentage need to be change
         reward = (self.lamda * delta_loss - cost - time_global)/10 #TODO test for the existance of data importance
         print("Scaling Reward:", reward)
@@ -289,13 +291,25 @@ class Env(object):
 
         # todo state transition here
 
+        print("########################################################################")
+        print("Action History:", self.action_history)
         history_cut = self.action_history[-3:]
+        print("History Cut:", history_cut)
         history_avg = np.mean(history_cut, axis=0)
+        print("history_avg:", history_avg)
+
+        print("Data Value before:", self.data_value)
         sign_add = action > history_avg
+        print("Sign Add:", sign_add)
         sign_reduce = action < history_avg
+        print("Sign Reduce:", sign_reduce)
         self.data_value = self.data_value * sign_add * 0.1 - self.data_value * sign_reduce * 0.1 + self.data_value
+        print("Data Value after:", self.data_value)
+
         self.bid_ = self.data_value + self.unit_E
-        #
+        print("Bid:", self.bid)
+        print("Next Bid:", self.bid_)
+
         # for i in range(self.bid.size):
         #
         #     if action[i] > history_avg[i]:
@@ -322,7 +336,7 @@ if __name__ == '__main__':
     ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 3)
     #todo num=0 2rounds on GPU; num=1 10rounds; num=2 20rounds of TestAcc; num=3 10Rounds test for data importance
 
-    csvFile1 = open("Test for existence of data importance" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
+    csvFile1 = open("Loss-State(Action Avg)" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
 
     accuracies = []
@@ -375,7 +389,7 @@ if __name__ == '__main__':
             #     action = ppo.choose_action(observation, configs.dec)
             reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
 
-            next_bid = cur_bid # todo Fix biding, tobe deleted after trial experiment
+            # next_bid = cur_bid  # todo Fix biding, to be deleted after trial experiment
 
             sum_accuracy += delta_accuracy
             sum_cost += cost
@@ -392,6 +406,7 @@ if __name__ == '__main__':
             recording.append(reward)
             recording.append(next_state)
 
+            print("Current State:", cur_state)
             print("Next State:", next_state)
 
             #  ppo.update()
@@ -414,6 +429,7 @@ if __name__ == '__main__':
 
             #TODO state transition
             cur_state = next_state
+            print("################################# ROUND END #####################################")
 
         if (EP+1) % 1 == 0:
             print("------------------------------------------------------------------------")
