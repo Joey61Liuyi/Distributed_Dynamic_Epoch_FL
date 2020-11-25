@@ -161,14 +161,12 @@ class Env(object):
         action = action.astype(int)
 
         #TODO FedAvg here
-        # tep = 2
-        # action = np.array([tep, tep, tep, tep, tep])
+        tep = 3
+        action = np.array([tep, tep, tep, tep, tep])
 
         self.action_history = list(self.action_history)
         self.action_history.append(action)
         self.action_history = np.array(self.action_history)
-        # tep = 1
-        # action = np.array([tep,tep,tep,tep,tep])
 
         print("Action", action)
         print(type(action))
@@ -325,10 +323,6 @@ class Env(object):
 
 # TODO  The above is Environment
 
-
-#
-# # TODO  The below is main DRL training progress
-# # todo check the random seed in Env reset !!!!!!!!!!!!!!!!!! line 53-57
 if __name__ == '__main__':
 
     configs = Configs()

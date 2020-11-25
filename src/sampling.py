@@ -89,9 +89,9 @@ def mnist_noniid_unequal(dataset, num_users):
     idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
     idxs = idxs_labels[0, :]
 
-    # Minimum and maximum shards assigned per client:
-    min_shard = round(num_shards/num_users*1/5)
-    max_shard = round(num_shards/num_users*2)
+    # # Minimum and maximum shards assigned per client:
+    # min_shard = round(num_shards/num_users*1/5)
+    # max_shard = round(num_shards/num_users*2)
 
     # Divide the shards into random chunks for every client
     # s.t the sum of these chunks = num_shards
@@ -227,17 +227,25 @@ def cifar_noniid_unequal(dataset, num_users):
     idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
     idxs = idxs_labels[0, :]
 
-    min_shard = round(num_shards/num_users*1/5)
-    max_shard = round(num_shards/num_users*2)
+    # min_shard = round(num_shards/num_users*1/5)
+    # max_shard = round(num_shards/num_users*2)
+    #
+    #
+    #
+    # if num_users == 5:
+    #     random_shard_size = np.array([400, 380, 320, 460, 440])
+    #
+    # else:
+    #     random_shard_size = np.array(randomSplit(num_shards, num_users, min_shard, max_shard))
+    #
+    # Di = pd.DataFrame(random_shard_size * num_imgs)
+    # Di.to_csv(str(num_users)+'_cifar.csv')
 
-    if num_users == 5:
-        random_shard_size = np.array([400, 380, 320, 460, 440])
 
-    else:
-        random_shard_size = np.array(randomSplit(num_shards, num_users, min_shard, max_shard))
-
-    Di = pd.DataFrame(random_shard_size * num_imgs)
-    Di.to_csv(str(num_users)+'_cifar.csv')
+    configs = Configs()
+    datasize = configs.data_size
+    random_shard_size = datasize/num_imgs
+    random_shard_size = random_shard_size.astype('int32')
 
     if sum(random_shard_size) > num_shards:
 

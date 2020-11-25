@@ -12,7 +12,7 @@ class Configs(object):
     def __init__(self):
 
         ## TODO For FL training
-        self.data = 'mnist'
+        self.data = 'cifar'
         self.rounds = 5    #todo change update batch
         self.frac = 1
         self.user_num = 5
@@ -29,6 +29,7 @@ class Configs(object):
 
         if self.data == 'cifar':
             theta_num = 62006
+            self.data_size = self.data_size*5/6
         else:
             theta_num = 21840
 
@@ -44,7 +45,7 @@ class Configs(object):
 
         ## TODO For RL training
 
-        self.EP_MAX = 2000
+        self.EP_MAX = 1
         self.S_DIM = 6  # TODO add history later
         self.A_DIM = 5
         self.BATCH = self.rounds  # TODO change round
