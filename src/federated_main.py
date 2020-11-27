@@ -172,7 +172,10 @@ class Env(object):
         loop_val = [possible_epochs, possible_epochs, possible_epochs, possible_epochs, possible_epochs]
 
         result_book = pd.DataFrame([], columns=["action", "reward"], index=None)
+
         for i in product(*loop_val):
+            if random.uniform(0, 1) > self.configs.myopia_frac:
+                continue
             weights_tep = []
             action = list(i)
             for one in action:
@@ -407,7 +410,7 @@ def Greedy_myopia():
         action, reward = env.fake_step()
         action = np.array(action)/5
         reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
-        data = data.append([{'reward': reward, 'delta_accuracy':delta_accuracy, 'round_time':round_time, 'energy':energy}])
+        data = data.append([{'reward': reward, 'delta_accuracy': delta_accuracy, 'round_time': round_time, 'energy': energy}])
     data.to_csv('Greedy_myopia.csv')
 
 def DRL_method():

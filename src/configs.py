@@ -69,7 +69,9 @@ class Configs(object):
         self.infer_round = 50
 
 
+        ## TODO For myopia greedy
 
+        self.myopia_frac = 0.1
 #
 #         self.lamda = 500
 #
