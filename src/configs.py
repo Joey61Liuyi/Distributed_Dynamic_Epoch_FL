@@ -12,7 +12,7 @@ class Configs(object):
     def __init__(self):
 
         ## TODO For FL training
-        self.data = 'cifar'
+        self.data = 'mnist'
         self.rounds = 5    #todo change update batch
         self.frac = 1
         self.user_num = 5
@@ -36,16 +36,22 @@ class Configs(object):
         self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
 
         self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
-        self.lamda = 4    # todo changed for 10 rounds
+
         self.C = 20
         self.alpha = 0.1
         self.local_epoch_range = 10
 
+        self.performance = ['loss', 'acc']
+        self.performance = self.performance[1]
 
+        if self.performance == 'acc':
+            self.lamda = 1000    # todo changed for 10 rounds
+        else:
+            self.lamda = 4
 
         ## TODO For RL training
 
-        self.EP_MAX = 1
+        self.EP_MAX = 2000
         self.S_DIM = 6  # TODO add history later
         self.A_DIM = 5
         self.BATCH = self.rounds  # TODO change round

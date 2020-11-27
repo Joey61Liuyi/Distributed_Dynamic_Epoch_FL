@@ -25,6 +25,7 @@ import threading
 
 from configs import Configs
 from DNC_PPO import PPO
+from itertools import product
 
 def get_parameter_number(net):
     total_num = sum(p.numel() for p in net.parameters())
@@ -47,9 +48,9 @@ class Env(object):
     def reset(self):
         self.index = 0
         self.data_value = 0.001 * self.data_size
-        self.unit_E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha  #TODO
+        self.unit_E = self.configs.frequency * self.configs.frequency * self.configs.C * self.configs.D * self.configs.alpha  #TODO
         self.bid = self.data_value + self.unit_E
-        self.bid_ = np.zeros(configs.user_num)
+        self.bid_ = np.zeros(self.configs.user_num)
         self.action_history = []
         # self.bid_min = 0.7 * self.bid
 
@@ -70,7 +71,7 @@ class Env(object):
         self.args = args_parser()
         exp_details(self.args)
 
-        if configs.gpu:
+        if self.configs.gpu:
             # torch.cuda.set_device(self.args.gpu)
             # device = 'cuda' if args.gpu else 'cpu'
 
@@ -141,6 +142,72 @@ class Env(object):
     #         self.local_weights.append(copy.deepcopy(w))
     #         self.local_losses.append(copy.deepcopy(loss))
 
+    def fake_step(self):
+
+        weights_rounds, local_losses = [], []
+        print(f'\n | Global Training Round : {self.index + 1} |\n')
+
+        global_model_tep = copy.deepcopy(self.global_model)
+
+        global_model_tep.train()
+
+        idxs_users = list(range(self.args.num_users))
+
+        # Local Training
+
+        possible_epochs = list(range(1,6))
+        for epoch in possible_epochs:
+            weights_users = []
+            for idx in idxs_users:
+
+                local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
+                                          idxs=self.user_groups[idx], logger=self.logger)
+                w, loss = local_model.update_weights(
+                    model=copy.deepcopy(self.global_model), global_round=self.index, local_ep=epoch)
+                weights_users.append(copy.deepcopy(w))
+                local_losses.append(copy.deepcopy(loss))
+            weights_rounds.append(copy.deepcopy(weights_users))
+
+        possible_epochs = list(range(6))
+        loop_val = [possible_epochs, possible_epochs, possible_epochs, possible_epochs, possible_epochs]
+
+        result_book = pd.DataFrame([], columns=["action", "reward"], index=None)
+        for i in product(*loop_val):
+            weights_tep = []
+            action = list(i)
+            for one in action:
+                if one:
+                    weights_tep.append(weights_rounds[one-1][action.index(one)])
+            if weights_tep != []:
+                global_weights = average_weights(weights_tep)
+                global_model_tep = copy.deepcopy(self.global_model)
+                global_model_tep.load_state_dict(global_weights)
+                global_model_tep.eval()
+                test_acc, test_loss = test_inference(self.args, global_model_tep, self.test_dataset)
+
+                delta_acc = test_acc - self.acc_before
+                delta_loss = self.loss_before - test_loss
+                action = np.array(action)
+                time_cmp = (action * self.D * self.C) / self.frequency
+                time_global = np.max(time_cmp)
+
+                data_value_sum = np.dot(action, self.data_value)
+                E = np.dot(action, self.unit_E)
+                cost = data_value_sum + E
+
+                if self.configs.performance == 'acc':
+                    delta_performance = delta_acc
+                else:
+                    delta_performance = delta_loss
+
+                reward = (self.lamda * delta_performance - cost - time_global)/10 #TODO test for the existance of data importance
+
+                print(action, reward)
+                result_book = result_book.append([{'action': action, 'reward': reward}])
+
+        result_book.to_csv('Result_book_of_round_'+str(self.index)+'.csv', index=None)
+
+        return result_book.sort_values('reward').iloc[-1]['action'], result_book.sort_values('reward').iloc[-1]['reward']
 
     def step(self, action):
 
@@ -161,8 +228,8 @@ class Env(object):
         action = action.astype(int)
 
         #TODO FedAvg here
-        tep = 3
-        action = np.array([tep, tep, tep, tep, tep])
+        # tep = 3
+        # action = np.array([tep, tep, tep, tep, tep])
 
         self.action_history = list(self.action_history)
         self.action_history.append(action)
@@ -212,6 +279,7 @@ class Env(object):
 
         # Calculate avg training accuracy over all users at every epoch
         list_acc, list_loss = [], []
+        # From now on, set the model to evaluation
         self.global_model.eval()
         for c in range(self.args.num_users):
             local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
@@ -282,8 +350,13 @@ class Env(object):
         cost = data_value_sum + E
         print("cost:", cost)
 
+
+        if self.configs.performance == 'acc':
+            delta_performance = delta_acc
+        else:
+            delta_performance = delta_loss
         # reward = (self.lamda * delta_acc - payment - time_global) / 10   #TODO reward percentage need to be change
-        reward = (self.lamda * delta_loss - cost - time_global)/10 #TODO test for the existance of data importance
+        reward = (self.lamda * delta_performance - cost - time_global)/10 #TODO test for the existance of data importance
         print("Scaling Reward:", reward)
         print("------------------------------------------------------------------------")
 
@@ -319,11 +392,25 @@ class Env(object):
 
         self.bid = self.bid_
 
-        return reward, self.bid, delta_acc, cost, time_global, action, E
+        return reward, self.bid, delta_performance, cost, time_global, action, E
 
 # TODO  The above is Environment
 
-if __name__ == '__main__':
+
+def Greedy_myopia():
+    configs = Configs()
+    env = Env(configs)
+    env.reset()
+    data = pd.DataFrame([], columns=['reward', 'delta_accuracy', 'round_time', 'energy'])
+
+    for one in range(configs.rounds):
+        action, reward = env.fake_step()
+        action = np.array(action)/5
+        reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
+        data = data.append([{'reward': reward, 'delta_accuracy':delta_accuracy, 'round_time':round_time, 'energy':energy}])
+    data.to_csv('Greedy_myopia.csv')
+
+def DRL_method():
 
     configs = Configs()
     env = Env(configs)
@@ -505,6 +592,12 @@ if __name__ == '__main__':
     # writer1.writerow(payments)
     # writer1.writerow(round_times)
     csvFile1.close()
+
+
+
+if __name__ == '__main__':
+    Greedy_myopia()
+
 #
 #     # TODO Inference with test data
 #
