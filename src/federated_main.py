@@ -221,9 +221,7 @@ class Env(object):
 
         pass
         self.global_model.train()
-        m = max(int(self.args.frac * self.args.num_users), 1)
-        idxs_users = np.random.choice(range(self.args.num_users), m, replace=False)
-
+        idxs_users = np.array(list(self.user_groups.keys()))
         print("User index:",idxs_users)
 
         # TODO  DRL Action
@@ -285,7 +283,8 @@ class Env(object):
         list_acc, list_loss = [], []
         # From now on, set the model to evaluation
         self.global_model.eval()
-        for c in range(self.args.num_users):
+
+        for idx in idxs_users:
             local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
                                       idxs=self.user_groups[idx], logger=self.logger)
             acc, loss = local_model.inference(model=self.global_model)
