@@ -413,11 +413,20 @@ def Greedy_myopia():
         data = data.append([{'reward': reward, 'delta_accuracy': delta_accuracy, 'round_time': round_time, 'energy': energy}])
     data.to_csv('Greedy_myopia.csv')
 
-def DRL_method():
+def DRL_inference(agent_info):
+    configs = Configs()
+    env = Env(configs)
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS,
+              configs.HAVE_TRAIN, agent_info)
+
+
+def DRL_train():
 
     configs = Configs()
     env = Env(configs)
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 3)
+    agent_info = configs.data+'_'+configs.performance + time.strftime("%Y-%m-%d", time.localtime())
+
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, agent_info)
     #todo num=0 2rounds on GPU; num=1 10rounds; num=2 20rounds of TestAcc; num=3 10Rounds test for data importance
 
     csvFile1 = open("Loss-State(Action Avg)" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
@@ -599,7 +608,7 @@ def DRL_method():
 
 
 if __name__ == '__main__':
-    Greedy_myopia()
+    DRL_train()
 
 #
 #     # TODO Inference with test data
