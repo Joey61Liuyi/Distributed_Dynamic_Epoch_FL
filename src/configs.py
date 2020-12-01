@@ -25,7 +25,9 @@ class Configs(object):
 
         # TODO for Fderated Env
 
+        self.remove_client_index = 4
         self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
+        self.data_size_original = self.data_size
 
         if self.data == 'cifar':
             theta_num = 62006
@@ -33,10 +35,16 @@ class Configs(object):
         else:
             theta_num = 21840
 
-        self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
+
 
         self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
 
+        if self.remove_client_index!=None:
+            self.user_num = self.user_num-1
+            self.data_size = np.delete(self.data_size, self.remove_client_index)
+            self.frequency = np.delete(self.frequency, self.remove_client_index)
+
+        self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
         self.C = 20
         self.alpha = 0.1
         self.local_epoch_range = 10
@@ -49,11 +57,12 @@ class Configs(object):
         else:
             self.lamda = 4
 
+
         ## TODO For RL training
 
         self.EP_MAX = 2000
-        self.S_DIM = 6  # TODO add history later
-        self.A_DIM = 5
+        self.S_DIM = self.user_num+1  # TODO add history later
+        self.A_DIM = self.user_num
         self.BATCH = self.rounds  # TODO change round
         self.A_UPDATE_STEPS = 5
         self.C_UPDATE_STEPS = 5
@@ -178,6 +187,7 @@ if __name__ == '__main__':
     np.random.seed(2)
     configs = Configs()
     E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha
+
     data = 0.001 * configs.data_size
     print(E)
     print(data)

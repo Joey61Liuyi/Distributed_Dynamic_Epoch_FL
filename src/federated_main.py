@@ -43,7 +43,7 @@ class Env(object):
         self.lamda = configs.lamda
         self.seed = 0
         self.D = configs.D
-        self.history_avg_price = np.zeros(5)
+        self.history_avg_price = np.zeros(self.configs.user_num)
 
     def reset(self):
         self.index = 0
@@ -82,7 +82,8 @@ class Env(object):
 
         # load dataset and user groups
         self.train_dataset, self.test_dataset, self.user_groups = get_dataset(self.args)
-
+        if self.configs.remove_client_index != None:
+            self.user_groups.pop(self.configs.remove_client_index)
 
         # BUILD MODEL
         if self.args.model == 'cnn':
@@ -151,7 +152,7 @@ class Env(object):
 
         global_model_tep.train()
 
-        idxs_users = list(range(self.args.num_users))
+        idxs_users = list(self.user_groups.keys())
 
         # Local Training
 
@@ -424,7 +425,7 @@ def DRL_train():
 
     configs = Configs()
     env = Env(configs)
-    agent_info = configs.data+'_'+configs.performance + time.strftime("%Y-%m-%d", time.localtime())
+    agent_info = str(configs.remove_client_index)+configs.data+'_'+configs.performance + time.strftime("%Y-%m-%d", time.localtime())
 
     ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, agent_info)
     #todo num=0 2rounds on GPU; num=1 10rounds; num=2 20rounds of TestAcc; num=3 10Rounds test for data importance
@@ -473,7 +474,7 @@ def DRL_train():
             print("Current State:", cur_state)
 
             action = ppo.choose_action(cur_state, configs.dec)
-            while (np.floor(5*action) == [0., 0., 0., 0., 0.]).all():
+            while (np.floor(5*action) == np.zeros(configs.user_num,)).all():
                 action = ppo.choose_action(cur_state, configs.dec)
 
             # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")

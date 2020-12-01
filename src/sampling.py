@@ -77,9 +77,14 @@ def mnist_noniid_unequal(dataset, num_users):
     :returns a dict of clients with each clients assigned certain
     number of training imgs
     """
+    configs = Configs()
     # 60,000 training imgs --> 50 imgs/shard X 1200 shards
     num_shards, num_imgs = 1200, 50
     idx_shard = [i for i in range(num_shards)]
+
+    if configs.remove_client_index != None:
+        num_users += 1
+
     dict_users = {i: np.array([]) for i in range(num_users)}
     idxs = np.arange(num_shards*num_imgs)
     labels = dataset.train_labels.numpy()
@@ -95,8 +100,8 @@ def mnist_noniid_unequal(dataset, num_users):
 
     # Divide the shards into random chunks for every client
     # s.t the sum of these chunks = num_shards
-    configs = Configs()
-    datasize = configs.data_size
+
+    datasize = configs.data_size_original
     random_shard_size = datasize/num_imgs
     random_shard_size = random_shard_size.astype('int32')
 
