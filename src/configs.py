@@ -25,7 +25,7 @@ class Configs(object):
 
         # TODO for Fderated Env
 
-        self.remove_client_index = 4
+        self.remove_client_index = None
         self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
         self.data_size_original = self.data_size
 

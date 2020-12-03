@@ -416,8 +416,41 @@ def Greedy_myopia():
 def DRL_inference(agent_info):
     configs = Configs()
     env = Env(configs)
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS,
-              configs.HAVE_TRAIN, agent_info)
+
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, True, agent_info)
+    recording = pd.DataFrame([], columns=['state history', 'action history', 'reward history', 'acc increase hisotry', 'time hisotry', 'energy history', 'social welfare', 'accuracy', 'time', 'energy'])
+
+
+    for EP in range(50):
+        cur_bid = env.reset()
+        cur_state = np.append(cur_bid, env.index)
+
+        state_list = []
+        action_list = []
+        reward_list = []
+        performance_increase_list = []
+        time_list = []
+        energy_list = []
+        for t in range(configs.rounds):
+            print("Current State:", cur_state)
+            action = ppo.choose_action(cur_state, configs.dec)
+            while (np.floor(5 * action) == np.zeros(configs.user_num, )).all():
+                action = ppo.choose_action(cur_state, configs.dec)
+            action[4] = 0
+            print(action)
+            reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
+
+            next_state = np.append(next_bid, env.index)
+
+            state_list.append(cur_state)
+            action_list.append(int_action)
+            reward_list.append(reward)
+            performance_increase_list.append(delta_accuracy)
+            time_list.append(round_time)
+            energy_list.append(energy)
+
+        recording = recording.append([{'state history': state_list, 'action history': action_list, 'reward history':reward_list, 'acc increase hisotry': performance_increase_list, 'time hisotry': time_list, 'energy history': energy_list, 'social welfare': np.sum(reward_list), 'accuracy': np.sum(performance_increase_list), 'time': np.sum(time_list), 'energy': np.sum(energy_list)}])
+        recording.to_csv(agent_info+'_Inference result.csv')
 
 
 def DRL_train():
@@ -608,8 +641,8 @@ def DRL_train():
 
 
 if __name__ == '__main__':
-    DRL_train()
-
+    # DRL_train()
+    DRL_inference('mnist_acc2020-12-01')
 #
 #     # TODO Inference with test data
 #
