@@ -80,7 +80,7 @@ class Configs(object):
 
         ## TODO For myopia greedy
 
-        self.myopia_frac = 0.1
+        self.myopia_frac = 1
 #
 #         self.lamda = 500
 #

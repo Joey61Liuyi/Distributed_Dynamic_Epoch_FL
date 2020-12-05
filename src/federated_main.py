@@ -170,7 +170,9 @@ class Env(object):
             weights_rounds.append(copy.deepcopy(weights_users))
 
         possible_epochs = list(range(6))
-        loop_val = [possible_epochs, possible_epochs, possible_epochs, possible_epochs, possible_epochs]
+        loop_val = []
+        for i in range(self.configs.user_num):
+            loop_val.append(possible_epochs)
 
         result_book = pd.DataFrame([], columns=["action", "reward"], index=None)
 
@@ -245,7 +247,7 @@ class Env(object):
         #TODO single thread
         for idx in idxs_users:
 
-            local_ep = self.local_ep_list[idx]
+            local_ep = self.local_ep_list[list(idxs_users).index(idx)]
 
             if local_ep != 0:
                 local_model = LocalUpdate(args=self.args, dataset=self.train_dataset,
@@ -404,14 +406,14 @@ def Greedy_myopia():
     configs = Configs()
     env = Env(configs)
     env.reset()
-    data = pd.DataFrame([], columns=['reward', 'delta_accuracy', 'round_time', 'energy'])
+    data = pd.DataFrame([], columns=['action','reward', 'delta_accuracy', 'round_time', 'energy'])
 
     for one in range(configs.rounds):
         action, reward = env.fake_step()
         action = np.array(action)/5
         reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
-        data = data.append([{'reward': reward, 'delta_accuracy': delta_accuracy, 'round_time': round_time, 'energy': energy}])
-    data.to_csv('Greedy_myopia.csv')
+        data = data.append([{'action': action, 'reward': reward, 'delta_accuracy': delta_accuracy, 'round_time': round_time, 'energy': energy}])
+    data.to_csv('Greedy_myopia.csv', index=None)
 
 def DRL_inference(agent_info):
     configs = Configs()
@@ -440,7 +442,9 @@ def DRL_inference(agent_info):
             print(action)
             reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
 
+            cur_bid = next_bid
             next_state = np.append(next_bid, env.index)
+            cur_state = next_state
 
             state_list.append(cur_state)
             action_list.append(int_action)
@@ -638,12 +642,49 @@ def DRL_train():
     # writer1.writerow(round_times)
     csvFile1.close()
 
+def Hand_control():
+    configs = Configs()
+    env = Env(configs)
+    recording = pd.DataFrame([], columns=['state history', 'action history', 'reward history', 'acc increase hisotry', 'time hisotry', 'energy history', 'social welfare', 'accuracy', 'time', 'energy'])
+
+    cur_bid = env.reset()
+    cur_state = np.append(cur_bid, env.index)
+
+    state_list = []
+    action_list = []
+    reward_list = []
+    performance_increase_list = []
+    time_list = []
+    energy_list = []
+    for t in range(configs.rounds):
+        print("Current State:", cur_state)
+        local_ep_list = input('please input the local epoch list:')
+        local_ep_list = local_ep_list.split(',')
+        local_ep_list = [int(i) for i in local_ep_list]
+        action = np.array(local_ep_list)/5
+        print(action)
+        reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
+
+        cur_bid = next_bid
+        next_state = np.append(next_bid, env.index)
+        cur_state = next_state
+
+        state_list.append(cur_state)
+        action_list.append(int_action)
+        reward_list.append(reward)
+        performance_increase_list.append(delta_accuracy)
+        time_list.append(round_time)
+        energy_list.append(energy)
+
+    recording = recording.append([{'state history': state_list, 'action history': action_list, 'reward history':reward_list, 'acc increase hisotry': performance_increase_list, 'time hisotry': time_list, 'energy history': energy_list, 'social welfare': np.sum(reward_list), 'accuracy': np.sum(performance_increase_list), 'time': np.sum(time_list), 'energy': np.sum(energy_list)}])
+    recording.to_csv('Hand_control_result.csv')
 
 
 if __name__ == '__main__':
     # DRL_train()
-    DRL_inference('mnist_acc2020-12-01')
-#
+    # DRL_inference('mnist_acc2020-12-01')
+    # Greedy_myopia()
+    Hand_control()
 #     # TODO Inference with test data
 #
 #     # Test inference after completion of training
