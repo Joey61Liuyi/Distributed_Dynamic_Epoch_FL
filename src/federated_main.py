@@ -462,7 +462,6 @@ def DRL_train():
     configs = Configs()
     env = Env(configs)
     agent_info = str(configs.remove_client_index)+configs.data+'_'+configs.performance + time.strftime("%Y-%m-%d", time.localtime())
-
     ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, agent_info)
     #todo num=0 2rounds on GPU; num=1 10rounds; num=2 20rounds of TestAcc; num=3 10Rounds test for data importance
 
@@ -477,6 +476,9 @@ def DRL_train():
     actions = []
     closses = []
     alosses = []
+    dec = configs.dec
+    A_LR = configs.A_LR
+    C_LR = configs.C_LR
 
     for EP in range(configs.EP_MAX):
         cur_bid = env.reset()
@@ -486,9 +488,9 @@ def DRL_train():
 
         #  learning rate change for trade-off between exploit and explore
         if EP % 20 == 0:
-            dec = configs.dec * 0.95
-            A_LR = configs.A_LR * 0.85
-            C_LR = configs.C_LR * 0.85
+            dec = dec * 0.95
+            A_LR = A_LR * 0.85
+            C_LR = C_LR * 0.85
 
         buffer_s = []
         buffer_a = []
@@ -681,10 +683,10 @@ def Hand_control():
 
 
 if __name__ == '__main__':
-    # DRL_train()
+    DRL_train()
     # DRL_inference('mnist_acc2020-12-01')
     # Greedy_myopia()
-    Hand_control()
+    # Hand_control()
 #     # TODO Inference with test data
 #
 #     # Test inference after completion of training
