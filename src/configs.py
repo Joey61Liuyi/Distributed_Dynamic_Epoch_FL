@@ -61,7 +61,7 @@ class Configs(object):
 
         ## TODO For RL training
 
-        self.EP_MAX = 6000
+        self.EP_MAX = 3000
         self.S_DIM = self.user_num+1  # TODO add history later
         self.A_DIM = self.user_num
         self.BATCH = self.rounds  # TODO change round

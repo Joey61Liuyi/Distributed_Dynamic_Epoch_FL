@@ -362,7 +362,7 @@ class Env(object):
         else:
             delta_performance = delta_loss
         # reward = (self.lamda * delta_acc - payment - time_global) / 10   #TODO reward percentage need to be change
-        reward = (self.lamda * delta_performance - cost - time_global)/10 #TODO test for the existance of data importance
+        reward = (self.lamda * delta_performance - cost)/10 #TODO test for the existance of data importance
         print("Scaling Reward:", reward)
         print("------------------------------------------------------------------------")
 
@@ -474,7 +474,6 @@ def DRL_inference(agent_info):
         recording = recording.append([{'state history': state_list, 'action history': action_list, 'reward history':reward_list, 'acc increase hisotry': performance_increase_list, 'time hisotry': time_list, 'energy history': energy_list, 'social welfare': np.sum(reward_list), 'accuracy': np.sum(performance_increase_list), 'time': np.sum(time_list), 'energy': np.sum(energy_list)}])
         recording.to_csv(agent_info+'_Inference result.csv')
 
-
 def DRL_train():
 
     configs = Configs()
@@ -497,6 +496,7 @@ def DRL_train():
     dec = configs.dec
     A_LR = configs.A_LR
     C_LR = configs.C_LR
+    C_loss = pd.DataFrame(columns=['Episodes', 'C-loss'])
 
     for EP in range(configs.EP_MAX):
         cur_bid = env.reset()
@@ -576,6 +576,7 @@ def DRL_train():
                     closs, aloss = ppo.update(np.vstack(buffer_s), np.vstack(buffer_a), discounted_r, configs.dec, configs.A_LR, configs.C_LR, EP+1)
                     sum_closs += closs
                     sum_aloss += aloss
+                    C_loss.append([{'Episodes': EP, 'C-loss': closs}])
 
             #TODO state transition
             cur_state = next_state
@@ -661,6 +662,7 @@ def DRL_train():
     # writer1.writerow(payments)
     # writer1.writerow(round_times)
     csvFile1.close()
+    C_loss.to_csv('DRL_closs.csv', index=None)
 
 def Hand_control():
     configs = Configs()
@@ -701,10 +703,10 @@ def Hand_control():
 
 
 if __name__ == '__main__':
-    # DRL_train()
+    DRL_train()
     # fed_avg()
     # DRL_inference('mnist_acc2020-12-01')
-    Greedy_myopia()
+    # Greedy_myopia()
     # Hand_control()
 #     # TODO Inference with test data
 #
