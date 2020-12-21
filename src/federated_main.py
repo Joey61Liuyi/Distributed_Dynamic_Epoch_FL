@@ -156,7 +156,8 @@ class Env(object):
 
         # Local Training
 
-        possible_epochs = list(range(1,6))
+
+        possible_epochs = list(range(1,self.configs.myopia_max_epoch+1))
         for epoch in possible_epochs:
             weights_users = []
             for idx in idxs_users:
@@ -169,7 +170,7 @@ class Env(object):
                 local_losses.append(copy.deepcopy(loss))
             weights_rounds.append(copy.deepcopy(weights_users))
 
-        possible_epochs = list(range(6))
+        possible_epochs = list(range(self.configs.myopia_max_epoch+1))
         loop_val = []
         for i in range(self.configs.user_num):
             loop_val.append(possible_epochs)
@@ -401,6 +402,23 @@ class Env(object):
 
 # TODO  The above is Environment
 
+
+def fed_avg():
+    configs = Configs()
+    env = Env(configs)
+    env.reset()
+    data = pd.DataFrame([], columns=['action', 'reward', 'delta_accuracy', 'round_time', 'energy'])
+
+
+    for one in range(configs.rounds):
+        action = []
+        for i in range(configs.user_num):
+            action.append(1)
+        action = np.array(action) / 5
+        reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
+        data = data.append([{'action': action, 'reward': reward, 'delta_accuracy': delta_accuracy,
+                             'round_time': round_time, 'energy': energy}])
+    data.to_csv('fed_avg1.csv', index=None)
 
 def Greedy_myopia():
     configs = Configs()
@@ -683,9 +701,10 @@ def Hand_control():
 
 
 if __name__ == '__main__':
-    DRL_train()
+    # DRL_train()
+    # fed_avg()
     # DRL_inference('mnist_acc2020-12-01')
-    # Greedy_myopia()
+    Greedy_myopia()
     # Hand_control()
 #     # TODO Inference with test data
 #

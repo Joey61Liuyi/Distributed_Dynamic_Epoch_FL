@@ -45,6 +45,7 @@ class Configs(object):
             self.frequency = np.delete(self.frequency, self.remove_client_index)
 
         self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
+
         self.C = 20
         self.alpha = 0.1
         self.local_epoch_range = 10
@@ -81,6 +82,7 @@ class Configs(object):
         ## TODO For myopia greedy
 
         self.myopia_frac = 1
+        self.myopia_max_epoch = 1
 #
 #         self.lamda = 500
 #
