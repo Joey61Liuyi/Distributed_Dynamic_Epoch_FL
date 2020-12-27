@@ -207,7 +207,7 @@ class Env(object):
                 else:
                     delta_performance = delta_loss
 
-                reward = (self.lamda * delta_performance - cost - time_global)/10 #TODO test for the existance of data importance
+                reward = (self.lamda * delta_performance - cost)/10 #TODO test for the existance of data importance
 
                 print(action, reward)
                 result_book = result_book.append([{'action': action, 'reward': reward}])
@@ -490,7 +490,6 @@ def DRL_train():
     round_times = []
 
     rewards = []
-    actions = []
     closses = []
     alosses = []
     dec = configs.dec
@@ -701,13 +700,101 @@ def Hand_control():
     recording = recording.append([{'state history': state_list, 'action history': action_list, 'reward history':reward_list, 'acc increase hisotry': performance_increase_list, 'time hisotry': time_list, 'energy history': energy_list, 'social welfare': np.sum(reward_list), 'accuracy': np.sum(performance_increase_list), 'time': np.sum(time_list), 'energy': np.sum(energy_list)}])
     recording.to_csv('Hand_control_result.csv')
 
+def greedy():
+    configs = Configs()
+    env = Env(configs)
+    csvFile1 = open("recording-Greedy_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
+    writer1 = csv.writer(csvFile1)
+
+    accuracies = []
+    payments = []
+    round_times = []
+    rewards = []
+    Actionset_list = []
+
+    for EP in range(configs.EP_MAX):
+
+        cur_bid = env.reset()
+        cur_state = np.append(cur_bid, 0)
+
+        recording = []
+        recording.append(cur_state)
+
+        sum_accuracy = 0
+        sum_cost = 0
+        sum_round_time = 0
+        sum_reward = 0
+        sum_energy = 0
+
+        if len(Actionset_list) < 20:    # action in first 20 episode is randomly chose
+            actionset = np.random.random(configs.rounds * configs.A_DIM)
+            actionset = actionset.reshape(configs.rounds, configs.A_DIM)
+        else:
+            tep = np.random.random(1)[0]
+            if tep <= 0.2:    # 20% to randomly choose action
+                actionset = np.random.random(configs.rounds * configs.A_DIM)
+                actionset = actionset.reshape(configs.rounds, configs.A_DIM)
+            else:     # 80% to choose the Max-R action (Greedy)
+                actionset = Actionset_list[0][0]
+        print("ActionSet:", actionset)
+
+        for t in range(configs.rounds):
+            action = actionset[t]
+            reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
+
+            sum_accuracy += delta_accuracy
+            sum_cost += cost
+            sum_round_time += round_time
+            sum_reward += reward
+            sum_energy += energy
+
+            next_state = np.append(next_bid, t + 1)
+
+
+            recording.append(int_action)
+            recording.append(reward)
+            recording.append(next_state)
+
+
+            next_state = np.append(next_bid, t+1)
+            cur_state = next_state
+
+        # if action-set is unchanged (80% greedy), then remove it and re-add it with its new reward in this round
+        # if action-set is changed (20% random), then add it to the actionset-list
+        for one in Actionset_list:
+            if (one[0] == actionset).all():
+                Actionset_list.remove(one)
+
+        # add the actionset in this round and sort actionset-list by Reward in descending order
+        Actionset_list.append((actionset, sum_reward))
+        Actionset_list = sorted(Actionset_list, key=lambda x: x[1], reverse=True)
+        print("ActionSet-List:", Actionset_list)
+
+        # if action-set is unchanged (80% greedy),the actionset-list = 20 and no one will pop
+        # if action-set is changed (20% random), pop the last actionset (sorted with Min-R)
+        if len(Actionset_list) > 20:
+            Actionset_list.pop()
+
+        if (EP+1) % 1 == 0:
+            print("------------------------------------------------------------------------")
+            print('instant ep:', (EP+1) )
+
+            recording.append(sum_reward * 10)
+            recording.append(sum_accuracy)
+            recording.append(sum_cost)
+            recording.append(sum_round_time)
+            recording.append(sum_energy)
+            writer1.writerow(recording)
+    csvFile1.close()
+
 
 if __name__ == '__main__':
-    DRL_train()
+    # DRL_train()
     # fed_avg()
     # DRL_inference('mnist_acc2020-12-01')
     # Greedy_myopia()
     # Hand_control()
+    greedy()
 #     # TODO Inference with test data
 #
 #     # Test inference after completion of training
@@ -726,134 +813,3 @@ if __name__ == '__main__':
 #     # file_name = 'save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
 #     #     format(args.dataset, args.model, args.epochs, args.frac, args.iid,
 #     #            args.local_ep, args.local_bs)
-
-
-# TODO  The below is Greedy training progress
-# TODO check the random seed in Env reset !!!!!!!!!!!!!!!!!!  line 53-57
-# if __name__ == '__main__':
-#
-#     configs = Configs()
-#     env = Env(configs)
-#     # ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, 0)
-#
-#     csvFile1 = open("recording-Greedy_" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
-#     writer1 = csv.writer(csvFile1)
-#
-#     accuracies = []
-#     payments = []
-#     round_times = []
-#     rewards = []
-#     actions = []
-#     Actionset_list = []
-#
-#     for EP in range(configs.EP_MAX):
-#
-#         cur_bid = env.reset()
-#         cur_state = np.append(cur_bid, 0)
-#
-#         sum_accuracy = 0
-#         sum_payment = 0
-#         sum_round_time = 0
-#         sum_reward = 0
-#         recording = []
-#
-#         if len(Actionset_list) < 20:    # action in first 20 episode is randomly chose
-#             actionset = np.random.random(configs.rounds * configs.A_DIM)
-#             actionset = actionset.reshape(configs.rounds, configs.A_DIM)
-#         else:
-#             tep = np.random.random(1)[0]
-#             if tep <= 0.2:    # 20% to randomly choose action
-#                 actionset = np.random.random(configs.rounds * configs.A_DIM)
-#                 actionset = actionset.reshape(configs.rounds, configs.A_DIM)
-#             else:     # 80% to choose the Max-R action (Greedy)
-#                 actionset = Actionset_list[0][0]
-#         print("ActionSet:", actionset)
-#
-#         for t in range(configs.rounds):
-#             action = actionset[t]
-#             reward, next_bid, delta_accuracy, pay, round_time = env.step(action)
-
-#             sum_accuracy += delta_accuracy
-#             sum_payment += pay
-#             sum_round_time += round_time
-#             sum_reward += reward
-
-#             next_state = np.append(next_bid, t+1)
-#             cur_state = next_state
-#
-#         # if action-set is unchanged (80% greedy), then remove it and re-add it with its new reward in this round
-#         # if action-set is changed (20% random), then add it to the actionset-list
-#         for one in Actionset_list:
-#             if (one[0] == actionset).all():
-#                 Actionset_list.remove(one)
-#
-#         # add the actionset in this round and sort actionset-list by Reward in descending order
-#         Actionset_list.append((actionset, sum_reward))
-#         Actionset_list = sorted(Actionset_list, key=lambda x: x[1], reverse=True)
-#         print("ActionSet-List:", Actionset_list)
-#
-#         # if action-set is unchanged (80% greedy),the actionset-list = 20 and no one will pop
-#         # if action-set is changed (20% random), pop the last actionset (sorted with Min-R)
-#         if len(Actionset_list) > 20:
-#             Actionset_list.pop()
-#
-#         if (EP+1) % 1 == 0:
-#             print("------------------------------------------------------------------------")
-#             print('instant ep:', (EP+1) )
-#
-#             rewards.append(sum_reward * 10)
-#             # actions.append(sum_action / configs.rounds)
-#             accuracies.append(sum_accuracy)
-#             payments.append(sum_payment)
-#             round_times.append(sum_round_time)
-#
-#             recording.append(sum_reward * 10)
-#             # recording.append(np.floor(5*(sum_action / configs.rounds)))
-#             recording.append(sum_accuracy)
-#             recording.append(sum_payment)
-#             recording.append(sum_round_time)
-#             writer1.writerow(recording)
-#
-#             print("accumulated reward:", sum_reward * 10)
-#             # print("average action:", sum_action / configs.rounds)
-#             print("total accuracy:", sum_accuracy)
-#             print("total payment:", sum_payment)
-#             print("total round time:", sum_round_time)
-#
-#             print("ROUND END ##############################################################")
-#
-#
-#     plt.plot(rewards)
-#     plt.ylabel("Reward")
-#     plt.xlabel("Episodes")
-#     # plt.savefig("Rewards.png", dpi=200)
-#     plt.show()
-#
-#     # plt.plot(actions)
-#     # plt.ylabel("action")
-#     # plt.xlabel("Episodes")
-#     # # plt.savefig("actions.png", dpi=200)
-#     # plt.show()
-#
-#     plt.plot(payments)
-#     plt.ylabel("payment")
-#     plt.xlabel("Episodes")
-#     # plt.savefig("Rewards.png", dpi=200)
-#     plt.show()
-#
-#     plt.plot(round_times)
-#     plt.ylabel("round time")
-#     plt.xlabel("Episodes")
-#     # plt.savefig("Rewards.png", dpi=200)
-#     plt.show()
-#
-#     plt.plot(accuracies)
-#     plt.ylabel("accuracy")
-#     plt.xlabel("Episodes")
-#     # plt.savefig("Rewards.png", dpi=200)
-#     plt.show()
-#
-#     csvFile1.close()
-
-
-
