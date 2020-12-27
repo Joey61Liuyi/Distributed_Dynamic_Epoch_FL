@@ -198,8 +198,13 @@ class Env(object):
                 time_cmp = (action * self.D * self.C) / self.frequency
                 time_global = np.max(time_cmp)
 
-                data_value_sum = np.dot(action, self.data_value)
-                E = np.dot(action, self.unit_E)
+                action_cost = []
+                for one in range(self.configs.user_num):
+                    action_cost.append(self.configs.myopia_max_epoch)
+                action_cost = np.array(action_cost)
+
+                data_value_sum = np.dot(action_cost, self.data_value)
+                E = np.dot(action_cost, self.unit_E)
                 cost = data_value_sum + E
 
                 if self.configs.performance == 'acc':
@@ -427,10 +432,10 @@ def Greedy_myopia():
     data = pd.DataFrame([], columns=['action','reward', 'delta_accuracy', 'round_time', 'energy'])
 
     for one in range(configs.rounds):
-        action, reward = env.fake_step()
+        action, reward_true = env.fake_step()
         action = np.array(action)/5
         reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
-        data = data.append([{'action': action, 'reward': reward, 'delta_accuracy': delta_accuracy, 'round_time': round_time, 'energy': energy}])
+        data = data.append([{'action': action, 'reward': reward_true, 'delta_accuracy': delta_accuracy, 'round_time': round_time, 'energy': energy}])
     data.to_csv('Greedy_myopia.csv', index=None)
 
 def DRL_inference(agent_info):
@@ -575,7 +580,7 @@ def DRL_train():
                     closs, aloss = ppo.update(np.vstack(buffer_s), np.vstack(buffer_a), discounted_r, configs.dec, configs.A_LR, configs.C_LR, EP+1)
                     sum_closs += closs
                     sum_aloss += aloss
-                    C_loss.append([{'Episodes': EP, 'C-loss': closs}])
+                    C_loss = C_loss.append([{'Episodes': EP, 'C-loss': closs}])
 
             #TODO state transition
             cur_state = next_state
@@ -792,9 +797,9 @@ if __name__ == '__main__':
     # DRL_train()
     # fed_avg()
     # DRL_inference('mnist_acc2020-12-01')
-    # Greedy_myopia()
+    Greedy_myopia()
     # Hand_control()
-    greedy()
+    # greedy()
 #     # TODO Inference with test data
 #
 #     # Test inference after completion of training
