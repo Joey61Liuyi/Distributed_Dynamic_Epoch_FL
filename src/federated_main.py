@@ -45,6 +45,87 @@ class Env(object):
         self.D = configs.D
         self.history_avg_price = np.zeros(self.configs.user_num)
 
+    def reset_for_greedy(self):
+        self.index = 0
+        self.data_value = 0.001 * self.data_size
+        self.unit_E = self.configs.frequency * self.configs.frequency * self.configs.C * self.configs.D * self.configs.alpha  # TODO
+        self.bid = self.data_value + self.unit_E
+        self.bid_ = np.zeros(self.configs.user_num)
+        self.action_history = []
+        # self.bid_min = 0.7 * self.bid
+
+        # todo annotate these random seed if run greedy, save them when run DRL
+        start_time = time.time()
+        self.acc_list = []
+        self.loss_list = []
+        # define paths
+        path_project = os.path.abspath('..')
+        self.logger = SummaryWriter('../logs')
+
+        self.args = args_parser()
+        exp_details(self.args)
+
+        if self.configs.gpu:
+            # torch.cuda.set_device(self.args.gpu)
+            # device = 'cuda' if args.gpu else 'cpu'
+
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        else:
+            device = 'cpu'
+
+        # load dataset and user groups
+        self.train_dataset, self.test_dataset, self.user_groups = get_dataset(self.args)
+        if self.configs.remove_client_index != None:
+            self.user_groups.pop(self.configs.remove_client_index)
+
+        # BUILD MODEL
+        if self.args.model == 'cnn':
+            # Convolutional neural netork
+            if self.args.dataset == 'mnist':
+                self.global_model = CNNMnist(args=self.args)
+            elif self.args.dataset == 'fmnist':
+                self.global_model = CNNFashion_Mnist(args=self.args)
+            elif self.args.dataset == 'cifar':
+                self.global_model = CNNCifar(args=self.args)
+            elif self.args.dataset == 'cifar100':
+                self.global_model = LeNet()
+
+        elif self.args.model == 'mlp':
+            # Multi-layer preceptron
+            img_size = self.train_dataset[0][0].shape
+            len_in = 1
+            for x in img_size:
+                len_in *= x
+                self.global_model = MLP(dim_in=len_in, dim_hidden=64,
+                                        dim_out=self.args.num_classes)
+        else:
+            exit('Error: unrecognized model')
+
+        # Set the model to train and send it to device.
+
+        print(get_parameter_number(self.global_model))
+        print('---------------------------------------------------------------------------------------')
+
+        self.global_model.to(device)
+        self.global_model.train()
+        print(self.global_model)
+
+        # copy weights
+        global_weights = self.global_model.state_dict()
+
+        # Training
+        self.train_loss, self.train_accuracy = [], []
+        self.test_loss, self.test_accuracy = [], []
+        self.acc_before = 0
+        self.loss_before = 300
+        self.val_acc_list, self.net_list = [], []
+        self.cv_loss, self.cv_acc = [], []
+        self.print_every = 1
+        val_loss_pre, counter = 0, 0
+
+        return self.bid
+
     def reset(self):
         self.index = 0
         self.data_value = 0.001 * self.data_size
@@ -55,11 +136,11 @@ class Env(object):
         # self.bid_min = 0.7 * self.bid
 
         # todo annotate these random seed if run greedy, save them when run DRL
-        # np.random.seed(self.seed)
-        # torch.random.manual_seed(self.seed)
-        # random.seed(self.seed)
-        # torch.cuda.manual_seed_all(self.seed)
-        # torch.cuda.manual_seed(self.seed)
+        np.random.seed(self.seed)
+        torch.random.manual_seed(self.seed)
+        random.seed(self.seed)
+        torch.cuda.manual_seed_all(self.seed)
+        torch.cuda.manual_seed(self.seed)
 
         start_time = time.time()
         self.acc_list = []
@@ -724,7 +805,7 @@ def greedy():
     for EP in range(configs.EP_MAX):
         print(EP)
         print('---------------------')
-        cur_bid = env.reset()
+        cur_bid = env.reset_for_greedy()
         cur_state = np.append(cur_bid, 0)
 
         recording = []
