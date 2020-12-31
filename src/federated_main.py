@@ -258,7 +258,7 @@ class Env(object):
         for i in range(self.configs.user_num):
             loop_val.append(possible_epochs)
 
-        result_book = pd.DataFrame([], columns=["action", "reward"], index=None)
+        result_book = pd.DataFrame([], columns=["action", "reward", "accuracy", "cost", "energy"], index=None)
 
         for i in product(*loop_val):
             if random.uniform(0, 1) > self.configs.myopia_frac:
@@ -298,11 +298,11 @@ class Env(object):
                 reward = (self.lamda * delta_performance - cost)/10 #TODO test for the existance of data importance
 
                 print(action, reward)
-                result_book = result_book.append([{'action': action, 'reward': reward}])
+                result_book = result_book.append([{'action': action, 'reward': reward, "accuracy": delta_acc, "cost": cost, "energy": E}])
 
         result_book.to_csv('Result_book_of_round_'+str(self.index)+'.csv', index=None)
 
-        return result_book.sort_values('reward').iloc[-1]['action'], result_book.sort_values('reward').iloc[-1]['reward']
+        return result_book.sort_values('reward').iloc[-1]['action'], result_book.sort_values('reward').iloc[-1]['reward'], result_book.sort_values('reward').iloc[-1]['accuracy'], result_book.sort_values('reward').iloc[-1]['cost'], result_book.sort_values('reward').iloc[-1]['energy']
 
     def step(self, action):
 
@@ -517,10 +517,10 @@ def Greedy_myopia():
     data = pd.DataFrame([], columns=['action', 'reward', 'delta_accuracy', 'round_time', 'energy'])
 
     for one in range(configs.rounds):
-        action, reward_true = env.fake_step()
+        action, reward, delta_accuracy, cost, energy = env.fake_step()
+        data = data.append([{'action': action, 'reward': reward, 'delta_accuracy': delta_accuracy, 'round_time': None, 'energy': energy}])
         action = np.array(action)/5
         reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
-        data = data.append([{'action': action, 'reward': reward_true, 'delta_accuracy': delta_accuracy, 'round_time': round_time, 'energy': energy}])
     data.to_csv('Greedy_myopia.csv', index=None)
 
 def DRL_inference(agent_info):
@@ -902,9 +902,9 @@ if __name__ == '__main__':
     # DRL_train()
     # fed_avg()
     # DRL_inference('mnist_acc2020-12-01')
-    # Greedy_myopia()
+    Greedy_myopia()
     # Hand_control()
-    greedy()
+    # greedy()
 #     # TODO Inference with test data
 #
 #     # Test inference after completion of training
