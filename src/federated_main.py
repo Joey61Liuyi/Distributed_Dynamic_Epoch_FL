@@ -514,7 +514,7 @@ def Greedy_myopia():
     configs = Configs()
     env = Env(configs)
     env.reset()
-    data = pd.DataFrame([], columns=['action','reward', 'delta_accuracy', 'round_time', 'energy'])
+    data = pd.DataFrame([], columns=['action', 'reward', 'delta_accuracy', 'round_time', 'energy'])
 
     for one in range(configs.rounds):
         action, reward_true = env.fake_step()
@@ -841,12 +841,6 @@ def greedy():
             print("------------------------------------------------------------------------")
             print('instant ep:', (EP + 1))
 
-            recording.append(sum_reward * 10)
-            # recording.append(sum_accuracy)
-            # recording.append(sum_cost)
-            # recording.append(sum_round_time)
-            # recording.append(sum_energy)
-            writer1.writerow(recording)
 
         else:
             tep = np.random.random(1)[0]
@@ -864,33 +858,24 @@ def greedy():
                     sum_round_time += round_time
                     sum_reward += reward
                     sum_energy += energy
-
-                    # recording.append(int_action)
-                    # recording.append(reward)
-                    # recording.append(next_state)
-
-
                     next_state = np.append(next_bid, t + 1)
                     cur_state = next_state
 
                 print("------------------------------------------------------------------------")
                 print('instant ep:', (EP + 1))
 
-                recording.append(sum_reward * 10)
-                # recording.append(sum_accuracy)
-                # recording.append(sum_cost)
-                # recording.append(sum_round_time)
-                # recording.append(sum_energy)
-                writer1.writerow(recording)
-
-
             else:     # 80% to choose the Max-R action (Greedy)
                 actionset = Actionset_list[0][0]
                 sum_reward = Actionset_list[0][1]
-                recording.append(sum_reward * 10)
-                writer1.writerow(recording)
+                sum_accuracy = Actionset_list[0][2]
+                sum_cost = Actionset_list[0][3]
+                sum_energy = Actionset_list[0][4]
 
-
+        recording.append(sum_reward * 10)
+        recording.append(sum_accuracy)
+        recording.append(sum_cost)
+        recording.append(sum_energy)
+        writer1.writerow(recording)
 
         # if action-set is unchanged (80% greedy), then remove it and re-add it with its new reward in this round
         # if action-set is changed (20% random), then add it to the actionset-list
@@ -899,7 +884,7 @@ def greedy():
                 Actionset_list.remove(one)
 
         # add the actionset in this round and sort actionset-list by Reward in descending order
-        Actionset_list.append((actionset, sum_reward))
+        Actionset_list.append((actionset, sum_reward, sum_accuracy, sum_cost, sum_energy))
         Actionset_list = sorted(Actionset_list, key=lambda x: x[1], reverse=True)
         print("ActionSet-List:", Actionset_list)
 
