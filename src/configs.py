@@ -26,14 +26,23 @@ class Configs(object):
         # TODO for Fderated Env
 
         self.remove_client_index = None
-        self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
-        self.data_size_original = self.data_size
+
+
 
         if self.data == 'cifar':
+            self.data_size = np.array([40, 38, 32, 46, 44]) * 250
             theta_num = 62006
-            self.data_size = self.data_size*5/6
+            self.D = (self.data_size / 10) * (32 * (theta_num + 10 * (3 * 32 * 32))) / 1e9
+        elif self.data == 'cifar100':
+            self.data_size = np.array([40, 38, 32, 46, 44]) * 250
+            theta_num = 69656
+            self.D = (self.data_size / 10) * (32 * (theta_num + 10 * (3 * 32 * 32))) / 1e9
         else:
+            self.data_size = np.array([12000, 10000, 8000, 14000, 16000])
             theta_num = 21840
+            self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
+
+        self.data_size_original = self.data_size
 
 
 
@@ -44,7 +53,6 @@ class Configs(object):
             self.data_size = np.delete(self.data_size, self.remove_client_index)
             self.frequency = np.delete(self.frequency, self.remove_client_index)
 
-        self.D = (self.data_size / 10) * (32 * (theta_num + 10 * 28 * 28)) / 1e9
 
         self.C = 20
         self.alpha = 0.1
@@ -54,7 +62,10 @@ class Configs(object):
         self.performance = self.performance[1]
 
         if self.performance == 'acc':
-            self.lamda = 1000    # todo changed for 10 rounds
+            if self.data == 'cifar100':
+                self.lamda = 2000
+            else:
+                self.lamda = 1000    # todo changed for 10 rounds
         else:
             self.lamda = 4
 

@@ -32,7 +32,10 @@ class LocalUpdate(object):
 
         self.device = torch.device("cuda" if args.gpu else "cpu")
         # Default criterion set to NLL loss function
-        self.criterion = nn.NLLLoss().to(self.device)
+        if args.dataset == 'cifar100':
+            self.criterion = nn.CrossEntropyLoss().to(self.device)
+        else:
+            self.criterion = nn.NLLLoss().to(self.device)
 
     def train_val_test(self, dataset, idxs):
         """

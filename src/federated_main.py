@@ -17,7 +17,7 @@ from tensorboardX import SummaryWriter
 from RL_brain import PPO
 from options import args_parser
 from update import LocalUpdate, test_inference
-from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar
+from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar, LeNet
 from utils import get_dataset, average_weights, exp_details
 import pandas as pd
 import random
@@ -55,11 +55,11 @@ class Env(object):
         # self.bid_min = 0.7 * self.bid
 
         # todo annotate these random seed if run greedy, save them when run DRL
-        np.random.seed(self.seed)
-        torch.random.manual_seed(self.seed)
-        random.seed(self.seed)
-        torch.cuda.manual_seed_all(self.seed)
-        torch.cuda.manual_seed(self.seed)
+        # np.random.seed(self.seed)
+        # torch.random.manual_seed(self.seed)
+        # random.seed(self.seed)
+        # torch.cuda.manual_seed_all(self.seed)
+        # torch.cuda.manual_seed(self.seed)
 
         start_time = time.time()
         self.acc_list = []
@@ -94,6 +94,8 @@ class Env(object):
                 self.global_model = CNNFashion_Mnist(args=self.args)
             elif self.args.dataset == 'cifar':
                 self.global_model = CNNCifar(args=self.args)
+            elif self.args.dataset == 'cifar100':
+                self.global_model = LeNet()
 
         elif self.args.model == 'mlp':
             # Multi-layer preceptron
@@ -320,6 +322,8 @@ class Env(object):
         test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
         self.test_accuracy.append(test_acc)
         self.test_loss.append(test_loss)
+
+        print('Test Accuracy: {:.2f}% \n'.format(100 * self.test_accuracy[-1]))
 
         delta_acc = self.test_accuracy[-1] - self.acc_before
         self.acc_before = self.test_accuracy[-1]
@@ -718,12 +722,13 @@ def greedy():
     Actionset_list = []
 
     for EP in range(configs.EP_MAX):
-
+        print(EP)
+        print('---------------------')
         cur_bid = env.reset()
         cur_state = np.append(cur_bid, 0)
 
         recording = []
-        recording.append(cur_state)
+        # recording.append(cur_state)
 
         sum_accuracy = 0
         sum_cost = 0
@@ -734,35 +739,77 @@ def greedy():
         if len(Actionset_list) < 20:    # action in first 20 episode is randomly chose
             actionset = np.random.random(configs.rounds * configs.A_DIM)
             actionset = actionset.reshape(configs.rounds, configs.A_DIM)
+
+            for t in range(configs.rounds):
+                action = actionset[t]
+                reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
+
+                sum_accuracy += delta_accuracy
+                sum_cost += cost
+                sum_round_time += round_time
+                sum_reward += reward
+                sum_energy += energy
+
+                # recording.append(int_action)
+                # recording.append(reward)
+                # recording.append(next_state)
+
+                next_state = np.append(next_bid, t + 1)
+                cur_state = next_state
+
+            print("------------------------------------------------------------------------")
+            print('instant ep:', (EP + 1))
+
+            recording.append(sum_reward * 10)
+            # recording.append(sum_accuracy)
+            # recording.append(sum_cost)
+            # recording.append(sum_round_time)
+            # recording.append(sum_energy)
+            writer1.writerow(recording)
+
         else:
             tep = np.random.random(1)[0]
             if tep <= 0.2:    # 20% to randomly choose action
+
                 actionset = np.random.random(configs.rounds * configs.A_DIM)
                 actionset = actionset.reshape(configs.rounds, configs.A_DIM)
+
+                for t in range(configs.rounds):
+                    action = actionset[t]
+                    reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
+
+                    sum_accuracy += delta_accuracy
+                    sum_cost += cost
+                    sum_round_time += round_time
+                    sum_reward += reward
+                    sum_energy += energy
+
+                    # recording.append(int_action)
+                    # recording.append(reward)
+                    # recording.append(next_state)
+
+
+                    next_state = np.append(next_bid, t + 1)
+                    cur_state = next_state
+
+                print("------------------------------------------------------------------------")
+                print('instant ep:', (EP + 1))
+
+                recording.append(sum_reward * 10)
+                # recording.append(sum_accuracy)
+                # recording.append(sum_cost)
+                # recording.append(sum_round_time)
+                # recording.append(sum_energy)
+                writer1.writerow(recording)
+
+
             else:     # 80% to choose the Max-R action (Greedy)
                 actionset = Actionset_list[0][0]
-        print("ActionSet:", actionset)
-
-        for t in range(configs.rounds):
-            action = actionset[t]
-            reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
-
-            sum_accuracy += delta_accuracy
-            sum_cost += cost
-            sum_round_time += round_time
-            sum_reward += reward
-            sum_energy += energy
-
-            next_state = np.append(next_bid, t + 1)
+                sum_reward = Actionset_list[0][1]
+                recording.append(sum_reward * 10)
+                writer1.writerow(recording)
 
 
-            recording.append(int_action)
-            recording.append(reward)
-            recording.append(next_state)
-
-
-            next_state = np.append(next_bid, t+1)
-            cur_state = next_state
 
         # if action-set is unchanged (80% greedy), then remove it and re-add it with its new reward in this round
         # if action-set is changed (20% random), then add it to the actionset-list
@@ -780,16 +827,8 @@ def greedy():
         if len(Actionset_list) > 20:
             Actionset_list.pop()
 
-        if (EP+1) % 1 == 0:
-            print("------------------------------------------------------------------------")
-            print('instant ep:', (EP+1) )
 
-            recording.append(sum_reward * 10)
-            recording.append(sum_accuracy)
-            recording.append(sum_cost)
-            recording.append(sum_round_time)
-            recording.append(sum_energy)
-            writer1.writerow(recording)
+
     csvFile1.close()
 
 
@@ -797,9 +836,9 @@ if __name__ == '__main__':
     # DRL_train()
     # fed_avg()
     # DRL_inference('mnist_acc2020-12-01')
-    Greedy_myopia()
+    # Greedy_myopia()
     # Hand_control()
-    # greedy()
+    greedy()
 #     # TODO Inference with test data
 #
 #     # Test inference after completion of training
