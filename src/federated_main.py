@@ -823,6 +823,11 @@ def greedy():
 
             for t in range(configs.rounds):
                 action = actionset[t]
+                tep = action < 0.2
+                while tep.all():
+                    action = np.random.random(5)
+                    tep = action < 0.2
+                    actionset[t] = action
                 reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
 
                 sum_accuracy += delta_accuracy
