@@ -906,27 +906,14 @@ def greedy():
 
 
 if __name__ == '__main__':
+    import datetime
+    start = datetime.datetime.now()
     DRL_train()
+
     # fed_avg()
     # DRL_inference('Nonemnist_acc2020-12-25')
     # Greedy_myopia()
     # Hand_control()
     # greedy()
-#     # TODO Inference with test data
-#
-#     # Test inference after completion of training
-#     #
-#     #
-#     #
-#     # test_acc, test_loss = test_inference(args, global_model, test_dataset)
-#     #
-#     #
-#     #
-#     # print(f' \n Results after {args.epochs} global rounds of training:')
-#     # print("|---- Avg Train Accuracy: {:.2f}%".format(100*train_accuracy[-1]))
-#     # print("|---- Test Accuracy: {:.2f}%".format(100*test_acc))
-#     #
-#     # # Saving the objects train_loss and train_accuracy:
-#     # file_name = 'save/objects/{}_{}_{}_C[{}]_iid[{}]_E[{}]_B[{}].pkl'.\
-#     #     format(args.dataset, args.model, args.epochs, args.frac, args.iid,
-#     #            args.local_ep, args.local_bs)
+    end = datetime.datetime.now()
+    print(end-start)
