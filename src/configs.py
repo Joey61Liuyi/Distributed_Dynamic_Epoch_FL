@@ -25,7 +25,7 @@ class Configs(object):
 
         # TODO for Fderated Env
 
-        self.remove_client_index = None
+        self.remove_client_index = 0
 
 
 
@@ -52,6 +52,7 @@ class Configs(object):
             self.user_num = self.user_num-1
             self.data_size = np.delete(self.data_size, self.remove_client_index)
             self.frequency = np.delete(self.frequency, self.remove_client_index)
+            self.D = np.delete(self.D, self.remove_client_index)
 
 
         self.C = 20
