@@ -507,7 +507,7 @@ def fed_avg():
         action = np.array(action) / 5
         reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
         data = data.append([{'action': action, 'reward': reward, 'delta_accuracy': delta_accuracy,
-                             'round_time': round_time, 'energy': energy}])
+                             'round_time': round_time, 'energy': energy, 'cost': cost}])
     data.to_csv('fed_avg1.csv', index=None)
 
 def Greedy_myopia():
@@ -518,7 +518,7 @@ def Greedy_myopia():
 
     for one in range(configs.rounds):
         action, reward, delta_accuracy, cost, energy = env.fake_step()
-        data = data.append([{'action': action, 'reward': reward, 'delta_accuracy': delta_accuracy, 'round_time': None, 'energy': energy}])
+        data = data.append([{'action': action, 'reward': reward, 'delta_accuracy': delta_accuracy, 'round_time': None, 'energy': energy, 'cost': cost}])
         action = np.array(action)/5
         reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
     data.to_csv('Greedy_myopia.csv', index=None)
@@ -540,6 +540,7 @@ def DRL_inference(agent_info):
         reward_list = []
         performance_increase_list = []
         time_list = []
+        cost_list = []
         energy_list = []
         for t in range(configs.rounds):
             print("Current State:", cur_state)
@@ -554,6 +555,7 @@ def DRL_inference(agent_info):
             next_state = np.append(next_bid, env.index)
             cur_state = next_state
 
+            cost_list.append(cost)
             state_list.append(cur_state)
             action_list.append(int_action)
             reward_list.append(reward)
@@ -561,7 +563,7 @@ def DRL_inference(agent_info):
             time_list.append(round_time)
             energy_list.append(energy)
 
-        recording = recording.append([{'state history': state_list, 'action history': action_list, 'reward history':reward_list, 'acc increase hisotry': performance_increase_list, 'time hisotry': time_list, 'energy history': energy_list, 'social welfare': np.sum(reward_list), 'accuracy': np.sum(performance_increase_list), 'time': np.sum(time_list), 'energy': np.sum(energy_list)}])
+        recording = recording.append([{'state history': state_list, 'action history': action_list, 'reward history':reward_list, 'acc increase hisotry': performance_increase_list, 'time hisotry': time_list, 'energy history': energy_list, 'social welfare': np.sum(reward_list), 'accuracy': np.sum(performance_increase_list), 'time': np.sum(time_list), 'energy': np.sum(energy_list), 'cost_sum': np.sum(cost_list)}])
         recording.to_csv(agent_info+'_Inference result.csv')
 
 def DRL_train():
@@ -572,7 +574,7 @@ def DRL_train():
     ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, agent_info)
     #todo num=0 2rounds on GPU; num=1 10rounds; num=2 20rounds of TestAcc; num=3 10Rounds test for data importance
 
-    csvFile1 = open("Loss-State(Action Avg)" + "Client_" + str(configs.user_num) + ".csv", 'w', newline='')
+    csvFile1 = open("remove"+str(configs.remove_client_index)+"_Result_summary_" + str(configs.user_num) + "Client_"+configs.data+".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
 
     accuracies = []
@@ -899,10 +901,10 @@ def greedy():
 
 
 if __name__ == '__main__':
-    # DRL_train()
+    DRL_train()
     # fed_avg()
-    # DRL_inference('mnist_acc2020-12-01')
-    Greedy_myopia()
+    # DRL_inference('Nonemnist_acc2020-12-25')
+    # Greedy_myopia()
     # Hand_control()
     # greedy()
 #     # TODO Inference with test data
