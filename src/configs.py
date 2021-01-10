@@ -25,7 +25,7 @@ class Configs(object):
 
         # TODO for Fderated Env
 
-        self.remove_client_index = 0
+        self.remove_client_index = 2
 
 
 

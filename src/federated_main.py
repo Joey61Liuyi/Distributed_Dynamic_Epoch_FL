@@ -240,6 +240,7 @@ class Env(object):
         # Local Training
 
 
+
         possible_epochs = list(range(1,self.configs.myopia_max_epoch+1))
         for epoch in possible_epochs:
             weights_users = []
@@ -526,45 +527,47 @@ def Greedy_myopia():
 def DRL_inference(agent_info):
     configs = Configs()
     env = Env(configs)
-
     ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, True, agent_info)
-    recording = pd.DataFrame([], columns=['state history', 'action history', 'reward history', 'acc increase hisotry', 'time hisotry', 'energy history', 'social welfare', 'accuracy', 'time', 'energy'])
+
+    for remove_client_for_vcg in range(3,5):
+
+        recording = pd.DataFrame([], columns=['state history', 'action history', 'reward history', 'acc increase hisotry', 'time hisotry', 'energy history', 'social welfare', 'accuracy', 'time', 'energy'])
 
 
-    for EP in range(50):
-        cur_bid = env.reset()
-        cur_state = np.append(cur_bid, env.index)
+        for EP in range(50):
+            cur_bid = env.reset()
+            cur_state = np.append(cur_bid, env.index)
 
-        state_list = []
-        action_list = []
-        reward_list = []
-        performance_increase_list = []
-        time_list = []
-        cost_list = []
-        energy_list = []
-        for t in range(configs.rounds):
-            print("Current State:", cur_state)
-            action = ppo.choose_action(cur_state, configs.dec)
-            while (np.floor(5 * action) == np.zeros(configs.user_num, )).all():
+            state_list = []
+            action_list = []
+            reward_list = []
+            performance_increase_list = []
+            time_list = []
+            cost_list = []
+            energy_list = []
+            for t in range(configs.rounds):
+                print("Current State:", cur_state)
                 action = ppo.choose_action(cur_state, configs.dec)
-            action[4] = 0
-            print(action)
-            reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
+                while (np.floor(5 * action) == np.zeros(configs.user_num, )).all():
+                    action = ppo.choose_action(cur_state, configs.dec)
+                action[remove_client_for_vcg] = 0
+                print(action)
+                reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
 
-            cur_bid = next_bid
-            next_state = np.append(next_bid, env.index)
-            cur_state = next_state
+                cur_bid = next_bid
+                next_state = np.append(next_bid, env.index)
+                cur_state = next_state
 
-            cost_list.append(cost)
-            state_list.append(cur_state)
-            action_list.append(int_action)
-            reward_list.append(reward)
-            performance_increase_list.append(delta_accuracy)
-            time_list.append(round_time)
-            energy_list.append(energy)
+                cost_list.append(cost)
+                state_list.append(cur_state)
+                action_list.append(int_action)
+                reward_list.append(reward)
+                performance_increase_list.append(delta_accuracy)
+                time_list.append(round_time)
+                energy_list.append(energy)
 
-        recording = recording.append([{'state history': state_list, 'action history': action_list, 'reward history':reward_list, 'acc increase hisotry': performance_increase_list, 'time hisotry': time_list, 'energy history': energy_list, 'social welfare': np.sum(reward_list), 'accuracy': np.sum(performance_increase_list), 'time': np.sum(time_list), 'energy': np.sum(energy_list), 'cost_sum': np.sum(cost_list)}])
-        recording.to_csv(agent_info+'_Inference result.csv')
+            recording = recording.append([{'state history': state_list, 'action history': action_list, 'reward history':reward_list, 'acc increase hisotry': performance_increase_list, 'time hisotry': time_list, 'energy history': energy_list, 'social welfare': np.sum(reward_list), 'accuracy': np.sum(performance_increase_list), 'time': np.sum(time_list), 'energy': np.sum(energy_list), 'cost_sum': np.sum(cost_list)}])
+            recording.to_csv(agent_info+'_Remove_'+ str(remove_client_for_vcg) + '_Inference result.csv')
 
 def DRL_train():
 
@@ -906,14 +909,14 @@ def greedy():
 
 
 if __name__ == '__main__':
-    import datetime
-    start = datetime.datetime.now()
+    # import datetime
+    # start = datetime.datetime.now()
     DRL_train()
+    # end = datetime.datetime.now()
+    # print(end-start)
 
     # fed_avg()
     # DRL_inference('Nonemnist_acc2020-12-25')
     # Greedy_myopia()
     # Hand_control()
     # greedy()
-    end = datetime.datetime.now()
-    print(end-start)
