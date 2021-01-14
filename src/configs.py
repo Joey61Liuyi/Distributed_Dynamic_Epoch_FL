@@ -201,7 +201,7 @@ if __name__ == '__main__':
     np.random.seed(2)
     configs = Configs()
     E = configs.frequency * configs.frequency * configs.C * configs.D * configs.alpha
-
+    print(configs.user_num)
     data = 0.001 * configs.data_size
     print(E)
     print(data)
