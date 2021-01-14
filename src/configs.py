@@ -12,7 +12,7 @@ class Configs(object):
     def __init__(self):
 
         ## TODO For FL training
-        self.data = 'mnist'
+        self.data = 'cifar'
         self.rounds = 5    #todo change update batch
         self.frac = 1
         self.user_num = 5

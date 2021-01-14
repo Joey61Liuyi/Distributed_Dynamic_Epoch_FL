@@ -218,6 +218,8 @@ def cifar_noniid(dataset, num_users):
     return dict_users
 
 def cifar_noniid_unequal(dataset, num_users):
+
+
     configs = Configs()
     if configs.remove_client_index != None:
         num_users += 1
@@ -250,7 +252,7 @@ def cifar_noniid_unequal(dataset, num_users):
 
 
     configs = Configs()
-    datasize = configs.data_size
+    datasize = configs.data_size_original
     random_shard_size = datasize/num_imgs
     random_shard_size = random_shard_size.astype('int32')
 
