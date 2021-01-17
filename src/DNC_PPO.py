@@ -177,7 +177,7 @@ class PPO(object):
                                      self.tfs: s, self.tfdc_r: r, self.decay: dec, self.a_lr: alr, self.c_lr: clr})
         if epoch % 5 == 0:
             tf.reset_default_graph()
-            self.saver.save(self.sess, "ckpt/" + str(self.num) + "/", global_step=epoch)
+            self.saver.save(self.sess, "ckpt/" + str(self.num) + "_save/", global_step=epoch)
         return closs, aloss
 
     def _build_anet(self, name, trainable):

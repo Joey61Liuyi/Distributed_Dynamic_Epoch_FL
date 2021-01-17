@@ -574,10 +574,12 @@ def DRL_train():
     configs = Configs()
     env = Env(configs)
     agent_info = str(configs.remove_client_index)+configs.data+'_'+configs.performance + time.strftime("%Y-%m-%d", time.localtime())
-    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, agent_info)
+    # ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, agent_info)
+    ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS,
+              True, '0cifar_acc2021-01-14')
     #todo num=0 2rounds on GPU; num=1 10rounds; num=2 20rounds of TestAcc; num=3 10Rounds test for data importance
 
-    csvFile1 = open("remove"+str(configs.remove_client_index)+"_Result_summary_" + str(configs.user_num) + "Client_"+configs.data+".csv", 'w', newline='')
+    csvFile1 = open("remove"+str(configs.remove_client_index)+"_Result_summary(Continue)_" + str(configs.user_num) + "Client_"+configs.data+".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
 
     accuracies = []
