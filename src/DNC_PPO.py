@@ -18,7 +18,7 @@ class PPO(object):
     replay_memory = deque()
     memory_size = 100
 
-    def __init__(self, S_DIM, A_DIM, BATCH, A_UPDATE_STEPS, C_UPDATE_STEPS, HAVE_TRAIN, num):
+    def __init__(self, S_DIM, A_DIM, BATCH, A_UPDATE_STEPS, C_UPDATE_STEPS, HAVE_TRAIN, info_read, info_save):
         self.sess = tf.Session()
         self.tfs = tf.placeholder(tf.float32, [None, S_DIM], 'state')
         self.S_DIM = S_DIM
@@ -29,7 +29,8 @@ class PPO(object):
         self.decay = tf.placeholder(tf.float32, (), 'decay')
         self.a_lr = tf.placeholder(tf.float32, (), 'a_lr')
         self.c_lr = tf.placeholder(tf.float32, (), 'c_lr')
-        self.num = num
+        self.info_read = info_read
+        self.info_save = info_save
         self.previous_state = [tf.Variable(tf.random_normal([1, 50])), tf.Variable(tf.random_normal([1, 50]))]
         self.previous_state_c = [tf.Variable(tf.random_normal([1, 50])), tf.Variable(tf.random_normal([1, 50]))]
 
@@ -142,7 +143,7 @@ class PPO(object):
         self.sess.run(init)
         if HAVE_TRAIN == True:
             model_file = tf.train.latest_checkpoint(
-                'ckpt/' + str(self.num) + "/")
+                'ckpt/' + str(self.info_read) + "/")
             self.saver.restore(self.sess, model_file)
 
     def update(self, s, a, r, dec, alr, clr, epoch):
@@ -177,7 +178,7 @@ class PPO(object):
                                      self.tfs: s, self.tfdc_r: r, self.decay: dec, self.a_lr: alr, self.c_lr: clr})
         if epoch % 5 == 0:
             tf.reset_default_graph()
-            self.saver.save(self.sess, "ckpt/" + str(self.num) + "_save/", global_step=epoch)
+            self.saver.save(self.sess, "ckpt/" + str(self.info_save), global_step=epoch)
         return closs, aloss
 
     def _build_anet(self, name, trainable):

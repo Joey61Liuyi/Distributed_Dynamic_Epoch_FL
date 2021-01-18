@@ -12,7 +12,7 @@ class Configs(object):
     def __init__(self):
 
         ## TODO For FL training
-        self.data = 'cifar'
+        self.data = 'mnist'
         self.rounds = 5    #todo change update batch
         self.frac = 1
         self.user_num = 5
@@ -25,7 +25,7 @@ class Configs(object):
 
         # TODO for Fderated Env
 
-        self.remove_client_index = 0
+        self.remove_client_index = None
 
 
 
