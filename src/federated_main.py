@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # Python version: 3.6
 
-
 import os
 import copy
 import time
@@ -573,16 +572,16 @@ def DRL_train():
 
     configs = Configs()
     env = Env(configs)
-    agent_info = str(configs.remove_client_index)+configs.data+'_'+configs.performance + time.strftime("%Y-%m-%d", time.localtime())
+    agent_info = str(configs.lamda)+'_'+str(configs.remove_client_index)+configs.data+'_'+configs.performance + time.strftime("%Y-%m-%d", time.localtime())
     # ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, agent_info)
     info_read = 'Nonemnist_acc2020-12-25'
-    info_save = 'transfer_'+agent_info
+    info_save = agent_info
     remove_client_for_vcg = 0
     ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS,
-              True, info_read, info_save)
+              False, info_read, info_save)
     #todo num=0 2rounds on GPU; num=1 10rounds; num=2 20rounds of TestAcc; num=3 10Rounds test for data importance
 
-    csvFile1 = open("transfer_remove"+str(configs.remove_client_index)+"_Result_summary(Continue)_" + str(configs.user_num) + "Client_"+configs.data+".csv", 'w', newline='')
+    csvFile1 = open(str(configs.lamda)+'_'+"transfer_remove"+str(configs.remove_client_index)+"_Result_summary(Continue)_" + str(configs.user_num) + "Client_"+configs.data+".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
 
     accuracies = []
@@ -629,10 +628,10 @@ def DRL_train():
             print("Current State:", cur_state)
 
             action = ppo.choose_action(cur_state, configs.dec)
-            action[remove_client_for_vcg] = 0
+            # action[remove_client_for_vcg] = 0
             while (np.floor(5*action) == np.zeros(configs.user_num,)).all():
                 action = ppo.choose_action(cur_state, configs.dec)
-                action[remove_client_for_vcg] = 0
+                # action[remove_client_for_vcg] = 0
 
             # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             # print(action)
