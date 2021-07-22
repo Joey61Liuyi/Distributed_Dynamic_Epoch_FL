@@ -13,9 +13,8 @@ import csv
 
 import torch
 from tensorboardX import SummaryWriter
-from RL_brain import PPO
 from options import args_parser
-from update import LocalUpdate, test_inference
+from update import LocalUpdate, test_inference, test_inference_top5
 from models import MLP, CNNMnist, CNNFashion_Mnist, CNNCifar, LeNet
 from utils import get_dataset, average_weights, exp_details
 import pandas as pd
@@ -361,8 +360,6 @@ class Env(object):
         # update global weights
         global_weights = average_weights(self.local_weights)
 
-        # print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # print(global_weights)
 
         # update global weights
         self.global_model.load_state_dict(global_weights)
@@ -400,7 +397,12 @@ class Env(object):
 
         # TODO    test accuracy
 
-        test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
+        if self.configs.accuracy == 'top1':
+            print("###### Here is Top-1 Accuracy ######")
+            test_acc, test_loss = test_inference(self.args, self.global_model, self.test_dataset)
+        else:
+            print("###### Here is Top-5 Accuracy ######")
+            test_acc, test_loss = test_inference_top5(self.args, self.global_model, self.test_dataset)
         self.test_accuracy.append(test_acc)
         self.test_loss.append(test_loss)
 
@@ -438,13 +440,16 @@ class Env(object):
         # E = np.sum(E)
 
         data_value_sum = np.dot(action, self.data_value)
-        print("Sum Data Value:", data_value_sum)
+        print("Data value of each client:", action*self.data_value)
+        print("Sum Data Value:\n", data_value_sum)
 
         E = np.dot(action, self.unit_E)
-        print("Energy:", E)
+        print("Energy of each client:", action * self.unit_E)
+        print("Sum energy:\n", E)
 
         cost = data_value_sum + E
-        print("cost:", cost)
+        print("Cost of each client:", action * (self.data_value + self.unit_E))
+        print("Sum cost:\n", cost)
 
 
         if self.configs.performance == 'acc':
@@ -508,7 +513,7 @@ def fed_avg():
         reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
         data = data.append([{'action': action, 'reward': reward, 'delta_accuracy': delta_accuracy,
                              'round_time': round_time, 'energy': energy, 'cost': cost}])
-    data.to_csv('fed_avg1.csv', index=None)
+    data.to_csv('fed_avg1_'+ configs.data + '.csv', index=None)
 
 def Greedy_myopia():
     configs = Configs()
@@ -521,7 +526,7 @@ def Greedy_myopia():
         data = data.append([{'action': action, 'reward': reward, 'delta_accuracy': delta_accuracy, 'round_time': None, 'energy': energy, 'cost': cost}])
         action = np.array(action)/5
         reward, next_bid, delta_accuracy, cost, round_time, int_action, energy = env.step(action)
-    data.to_csv('Greedy_myopia.csv', index=None)
+    data.to_csv('Greedy_myopia'+str(configs.data)+'.csv', index=None)
 
 def DRL_inference(agent_info):
     configs = Configs()
@@ -574,14 +579,15 @@ def DRL_train():
     env = Env(configs)
     agent_info = str(configs.lamda)+'_'+str(configs.remove_client_index)+configs.data+'_'+configs.performance + time.strftime("%Y-%m-%d", time.localtime())
     # ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS, configs.HAVE_TRAIN, agent_info)
-    info_read = 'Nonemnist_acc2020-12-25'
+    info_read = 'cifar1000'
     info_save = agent_info
     remove_client_for_vcg = 0
     ppo = PPO(configs.S_DIM, configs.A_DIM, configs.BATCH, configs.A_UPDATE_STEPS, configs.C_UPDATE_STEPS,
               False, info_read, info_save)
     #todo num=0 2rounds on GPU; num=1 10rounds; num=2 20rounds of TestAcc; num=3 10Rounds test for data importance
 
-    csvFile1 = open(str(configs.lamda)+'_'+"transfer_remove"+str(configs.remove_client_index)+"_Result_summary(Continue)_" + str(configs.user_num) + "Client_"+configs.data+".csv", 'w', newline='')
+    csvFile1 = open(str(configs.lamda) + "_TransferRemove" + str(configs.remove_client_index) + "_Result_summary(Continue)_"
+                    + str(configs.user_num) + "Client_" + configs.data + "_" + str(configs.accuracy) + ".csv", 'w', newline='')
     writer1 = csv.writer(csvFile1)
 
     accuracies = []
@@ -918,11 +924,12 @@ if __name__ == '__main__':
     import datetime
     start = datetime.datetime.now()
     DRL_train()
-    end = datetime.datetime.now()
-    print(end-start)
-
     # fed_avg()
     # DRL_inference('Nonemnist_acc2020-12-25')
     # Greedy_myopia()
     # Hand_control()
     # greedy()
+    end = datetime.datetime.now()
+    print("Running Time:", end-start)
+
+

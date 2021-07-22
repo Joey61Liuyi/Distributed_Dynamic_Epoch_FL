@@ -96,6 +96,7 @@ class LocalUpdate(object):
 
         return model.state_dict(), sum(epoch_loss) / len(epoch_loss)
 
+
     def inference(self, model):
         """ Returns the inference accuracy and loss.
         """
@@ -149,3 +150,34 @@ def test_inference(args, model, test_dataset):
 
     accuracy = correct/total
     return accuracy, loss
+
+def test_inference_top5(args, model, test_dataset):
+    """ Returns the test accuracy and loss.
+    """
+
+    model.eval()
+    loss, total, correct = 0.0, 0.0, 0.0
+
+    device = 'cuda' if args.gpu else 'cpu'
+    criterion = nn.NLLLoss().to(device)
+    testloader = DataLoader(test_dataset, batch_size=128,
+                            shuffle=False)
+
+    for batch_idx, (images, labels) in enumerate(testloader):
+        images, labels = images.to(device), labels.to(device)
+
+        # Inference
+        outputs = model(images)
+        batch_loss = criterion(outputs, labels)
+        loss += batch_loss.item()
+
+        # Prediction
+        maxk=5
+        _, pred = outputs.topk(maxk, 1, True, True)
+        pred = pred.t()
+        correct += torch.sum(pred.eq(labels.view(1, -1).expand_as(pred)))
+        total += len(labels)
+    corrects = correct.item()
+    accuracy = corrects/total
+    return accuracy, loss
+

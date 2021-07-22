@@ -60,6 +60,7 @@ def get_dataset(args):
 
         user_groups = cifar_noniid_unequal(train_dataset, args.num_users)
 
+
     elif args.dataset == 'mnist' or 'fmnist':
         if args.dataset == 'mnist':
             data_dir = '../data/mnist/'
@@ -109,7 +110,8 @@ def exp_details(args):
     print(f'    Model     : {args.model}')
     print(f'    Optimizer : {args.optimizer}')
     print(f'    Learning  : {args.lr}')
-    print(f'    Global Rounds   : {args.epochs}\n')
+    print(f'    Global Rounds   : {args.epochs}')
+    print(f'    Dataset   : {args.dataset}\n')
 
     print('    Federated parameters:')
     if args.iid:

@@ -21,6 +21,7 @@ class Configs(object):
         self.iid = 0
         self.unequal = 1
         self.gpu = 1   # 0 = CPU; 1 = GPU
+        self.accuracy = 'top1'
 
 
         # TODO for Fderated Env
@@ -45,8 +46,10 @@ class Configs(object):
         self.data_size_original = self.data_size
 
 
+        # self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
+        # self.frequency = np.array([1.5359949, 1.32592623, 1.44966248, 1.13532239, 1.6203678])
+        self.frequency = np.array([2.4359949, 2.52592623, 2.04966248, 2.33532239, 2.7203678])
 
-        self.frequency = np.array([1.4359949, 1.52592623, 1.04966248, 1.33532239, 1.7203678])
 
         if self.remove_client_index!=None:
             self.user_num = self.user_num-1
@@ -62,11 +65,14 @@ class Configs(object):
         self.performance = ['loss', 'acc']
         self.performance = self.performance[1]
 
-        if self.performance == 'acc':
-            if self.data == 'cifar100':
-                self.lamda = 2000
+        if self.performance == 'acc':     # original: Mnist-1000; cifar-1000
+            if self.data == 'mnist':
+                self.lamda = 1000
+            elif self.data == 'cifar':
+                self.lamda = 1000
             else:
-                self.lamda = 1000    # todo changed for 10 rounds
+                self.lamda = 2000
+
         else:
             self.lamda = 4
 
